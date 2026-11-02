@@ -494,3 +494,26 @@ Each entry: decision, why, alternatives considered or rejected. Decisions marked
   - selection from another page
   - themes
   - System provider usage, and the usage panel's other allowances, unknown, stale and unavailable states
+- **Superseded in part by AD-36 (session 13):** Traffic no longer expands vertically in the sidebar; it opens as a flyout to the right of the sidebar. The `halflife.traffic` preference is no longer used.
+
+## AD-36 Traffic opens as a flyout to the right of the sidebar (session 13, 2026-11-03)
+- **Problem:** AD-35 made Traffic a vertical accordion under its heading in the sidebar. Expanded, it took the sidebar's remaining height, pushed the theme control down and made the sidebar scroll. The operator does not want the accordion; they want Traffic to open sideways, to the right of the navigation sidebar, as the AD-33 drawer did (it slid out from the rail's edge over the workspace).
+- **Decision:** the sidebar (AD-35) is unchanged. Only how Traffic opens changes:
+  - The Traffic item is one fixed-height button in the sidebar (`aria-expanded`, `aria-haspopup="dialog"`, a right-pointing chevron, the report count and the new-report dot). Clicking it toggles a **flyout panel** (`#traffic-panel`, `role="dialog"`, labelled "Traffic", with a ✕ close button).
+  - The flyout is `position: fixed`. It never changes the sidebar's size or scroll height and never moves a navigation item. It overlays the page; it does not narrow it.
+- **Placement:**
+  - **Docked (≥ 1100 px):** at the sidebar's right edge, below the top bar, full height, `min(360px, 100vw − sidebar − 40px)` wide.
+  - **Overlay, 700–1099 px:** at the overlay sidebar's right edge, full viewport height, same width rule; the scrim still covers the rest.
+  - **Overlay, < 700 px:** there is no room beside a 300 px sidebar, so the flyout covers the sidebar exactly (same left edge and width). ✕ or Escape returns to the menu.
+- **Dismissal and focus:**
+  - Clicking Traffic again, ✕, Escape, a press outside the flyout and its toggle (the page, the rest of the sidebar, or the scrim), following a navigation link, choosing a report, closing the sidebar, or crossing the 1100 px breakpoint closes it.
+  - The flyout itself is non-modal, so Tab moving focus out of it (anywhere but its toggle) also closes it. In overlay mode the sidebar stays modal around it.
+  - Escape closes the innermost layer first: the flyout, then (overlay mode) the sidebar.
+  - Opening moves focus to the selected report (or the first, or ✕ when the list is empty). Closing with the toggle, ✕, Escape or a docked selection returns focus to the Traffic toggle. In overlay mode a selection closes the sidebar too, and focus returns to the menu button, as in AD-35.
+- **Unchanged:** the shared list (`traffic.js`), the latest-100 window, live reloads on engine events, arrow keys / Home / End, `T` (opens the sidebar and the flyout with focus on the selected report, from any page), selection in place on the Inspector or navigation from other pages, newer/older in the report header, and the new-report marks. The menu-button mark clears when the sidebar opens; the Traffic mark clears when the flyout is open.
+- **Preferences:** `halflife.sidebar` (docked open/closed) and `halflife.theme` are unchanged. The flyout is never remembered open, like AD-33's drawer: an overlay that reopened itself on load would cover the report. The AD-35 key `halflife.traffic` is no longer read; a stale value is harmless.
+- **Motion:** 200 ms slide and fade from 12 px left; none under `prefers-reduced-motion`. A closed flyout is `visibility: hidden`, so it leaves the tab order and the accessibility tree. It closes instantly with its sidebar.
+- **Why not reuse the AD-33 code as it was:** the drawer lived inside the Inspector, so it existed only on that page and was positioned against the workspace. The list is now shared and lives in the sidebar on every page. The AD-33 interaction is kept (sideways panel, ✕/Escape/outside click/selection, focus in and back, same 360 px width rule), adapted to sit beside the sidebar. AD-33's full-viewport modal scrim is not reused in docked mode, where the sidebar itself is non-modal.
+- **Rejected:** a vertical accordion (operator); widening the sidebar to hold the list (narrows the report); a second permanent column.
+- **Implementation:** `engine/console/{index.html,traffic.js,app.js,styles.css}`; no dependency; no engine, spend, usage, extension or other page change.
+- **Tests:** `engine/test/console-ui.test.mjs`, still 13 checks, with the Traffic checks rewritten. They cover the flyout at the sidebar's right edge, unmoved navigation and sidebar geometry, unchanged page width, toggle-again, Escape (layered in overlay mode), outside click, a click elsewhere in the sidebar, a nav link, Tab out, a reload not reopening it, selection, `T`, arrows/Home/End/Enter, live marks, tablet placement within the viewport, and the phone cover-the-sidebar placement with ✕.

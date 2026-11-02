@@ -1,17 +1,20 @@
-// Traffic: the latest 100 reports, shown as a collapsible section of the main sidebar (AD-35).
-// One shared list for the whole console, so the sidebar shows it on every page; the Inspector
-// reads the same list for its newer/older stepping. Live: any engine event reloads the list
-// (debounced). "New" means a newer report than the newest one the viewer has had on screen.
+// Traffic: the latest 100 reports, opened from the Traffic item of the main sidebar as a flyout
+// panel to the right of the sidebar (AD-36; the sideways interaction of AD-33's drawer). The
+// flyout is position: fixed, so it never grows the sidebar or moves the navigation. It always
+// starts closed. One shared list for the whole console; the Inspector reads the same list for its
+// newer/older stepping. Live: any engine event reloads the list (debounced). "New" means a newer
+// report than the newest one the viewer has had on screen.
 import { api, clear, h, icon, pct, plural, stamp, time } from "./lib.js";
 
 const STAGES = { extract: "Extracting claims", assess: "Estimating freshness", verify: "Verifying against live sources" };
 const LIMIT = 100;
-const EXPAND_KEY = "halflife.traffic";
 
 export function createTraffic({ onEngineEvent, onPick, isVisible }) {
   const toggle = document.getElementById("traffic-toggle");
   const panel = document.getElementById("traffic-panel");
+  const closeBtn = document.getElementById("traffic-close");
   const count = document.getElementById("traffic-count");
+  const summary = document.getElementById("traffic-summary");
   const newNote = document.getElementById("traffic-new");
   const list = h("ul", { class: "feed-list", "aria-label": "Latest reports", onkeydown: onKey });
   panel.append(list);
@@ -20,28 +23,36 @@ export function createTraffic({ onEngineEvent, onPick, isVisible }) {
   let selectedId = null;
   let loaded = false;
   let seenTopId = null;
-  let expanded = false;
+  let open = false;
   const listeners = new Set();
-  try {
-    expanded = localStorage.getItem(EXPAND_KEY) === "open";
-  } catch {}
-  applyExpanded();
-  toggle.addEventListener("click", () => setExpanded(!expanded));
+  toggle.addEventListener("click", () => setOpen(!open, { focus: true }));
+  closeBtn.addEventListener("click", () => setOpen(false, { focus: true }));
+  // Non-modal flyout: Tab moving focus out of it (other than back to its toggle) closes it.
+  panel.addEventListener("focusout", (e) => {
+    const to = e.relatedTarget;
+    if (open && to && !panel.contains(to) && to !== toggle) setOpen(false);
+  });
 
-  function applyExpanded() {
-    toggle.setAttribute("aria-expanded", String(expanded));
-    panel.hidden = !expanded;
-    toggle.closest(".traffic").dataset.expanded = String(expanded);
-  }
-  function setExpanded(v, { persist = true } = {}) {
-    expanded = v;
-    applyExpanded();
-    if (persist) {
-      try {
-        localStorage.setItem(EXPAND_KEY, v ? "open" : "closed");
-      } catch {}
+  /** Open or close the flyout. focus: move focus in (selected report) on open, back to the toggle on close. */
+  function setOpen(v, { focus = false } = {}) {
+    if (v !== open) {
+      open = v;
+      toggle.setAttribute("aria-expanded", String(v));
+      panel.dataset.open = String(v);
+      toggle.closest(".traffic").dataset.open = String(v);
+      markSeenIfVisible();
     }
-    markSeenIfVisible();
+    if (!focus) return;
+    if (v) {
+      if (!focusSelected()) closeBtn.focus();
+    } else toggle.focus();
+  }
+  function focusSelected() {
+    const el = list.querySelector('.feed-item[aria-current="true"]') ?? list.querySelector(".feed-item");
+    if (!el) return false;
+    el.focus();
+    el.scrollIntoView?.({ block: "nearest" });
+    return true;
   }
 
   function onKey(e) {
@@ -70,6 +81,7 @@ export function createTraffic({ onEngineEvent, onPick, isVisible }) {
   function render() {
     count.textContent = reports.length ? (reports.length >= LIMIT ? String(LIMIT) : String(reports.length)) : "";
     count.title = reports.length >= LIMIT ? "Showing the latest 100 reports" : plural(reports.length, "report");
+    summary.textContent = reports.length >= LIMIT ? "latest 100" : reports.length ? plural(reports.length, "report") : "";
     clear(list);
     if (!reports.length) {
       list.append(h("li", { class: "feed-empty" }, "No traffic yet. Answers that pass through the gateway appear here as they arrive."));
@@ -96,7 +108,7 @@ export function createTraffic({ onEngineEvent, onPick, isVisible }) {
   }
 
   function markSeenIfVisible() {
-    if (expanded && isVisible() && loaded) seenTopId = reports[0]?.id ?? null;
+    if (open && isVisible() && loaded) seenTopId = reports[0]?.id ?? null;
     updateNew();
   }
   function hasNew() {
@@ -120,8 +132,10 @@ export function createTraffic({ onEngineEvent, onPick, isVisible }) {
   return {
     get reports() { return reports; },
     get loaded() { return loaded; },
-    get expanded() { return expanded; },
-    setExpanded,
+    get open() { return open; },
+    setOpen,
+    /** True when the event target belongs to the flyout or its toggle (for outside-click handling). */
+    contains: (node) => panel.contains(node) || toggle.contains(node),
     hasNew,
     /** Call when the sidebar opens or closes, so on-screen reports count as seen. */
     visibilityChanged: markSeenIfVisible,
@@ -130,13 +144,7 @@ export function createTraffic({ onEngineEvent, onPick, isVisible }) {
       for (const b of list.querySelectorAll(".feed-item")) b.setAttribute("aria-current", String(b.dataset.id === id));
     },
     /** Focus the selected report (or the first one); false when there is nothing to focus. */
-    focusSelected() {
-      const el = list.querySelector('.feed-item[aria-current="true"]') ?? list.querySelector(".feed-item");
-      if (!el) return false;
-      el.focus();
-      el.scrollIntoView?.({ block: "nearest" });
-      return true;
-    },
+    focusSelected,
     onChange(fn) {
       listeners.add(fn);
       if (loaded) fn(reports);

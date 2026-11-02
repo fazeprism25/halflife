@@ -221,7 +221,7 @@ The console (port 8090) additionally uses `/v1/events` (server-sent events) and 
 
 ![Halflife console: a claim-level report where a cached answer was invalidated](docs/assets/screenshots/04-node-version-invalidated.png)
 
-More console screenshots, captured from a local run on 2026-11-02, are in [`docs/assets/screenshots/`](docs/assets/screenshots/). Local clock times and the time zone have been blanked out; nothing else was changed. They predate the collapsible sidebar (2026-11-03): navigation and the report list (Traffic) now sit in one sidebar, opened with the menu button (or `T` for Traffic), and the report uses the full width while it is collapsed.
+More console screenshots, captured from a local run on 2026-11-02, are in [`docs/assets/screenshots/`](docs/assets/screenshots/). Local clock times and the time zone have been blanked out; nothing else was changed. They predate the collapsible sidebar (2026-11-03): navigation now sits in one sidebar, opened with the menu button, and the report list (Traffic) opens in a panel to the right of it (or with `T`); the report uses the full width while the sidebar is collapsed.
 
 ## ChatGPT extension
 

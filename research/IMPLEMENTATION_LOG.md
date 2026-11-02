@@ -4,6 +4,26 @@ Newest first. Every entry records what was done, the files touched, the tests ru
 
 ---
 
+## 2026-11-03, session 13 (Traffic flyout to the right of the sidebar, AD-36)
+
+- **Operator request:** replace AD-35's vertical Traffic accordion with a sideways panel to the right of the navigation sidebar, restoring the earlier interaction. Keep the sidebar redesign. Change nothing in Tavily usage, credit accounting, spend safeguards, engine limits, the extension or unrelated pages. Separate commit; no push or deploy without approval.
+- **History inspected:** `git show d2349a3` (AD-33). The drawer was an absolutely positioned 360 px panel at the workspace's left edge (the nav rail's right edge), sliding in with a scrim, ✕/Escape/outside click/selection to close, focus in and back to the toggle. Its interaction is reused; its code lived in `views/inspector.js`, while the list is now shared (`traffic.js`) and in the sidebar on every page, so it was adapted rather than restored.
+- **Changes:**
+  - `engine/console/index.html`: the Traffic `h2` disclosure becomes a button (`aria-haspopup="dialog"`, right chevron) and a `#traffic-panel` flyout (`role="dialog"`, header with summary and ✕ `#traffic-close`).
+  - `engine/console/traffic.js`: `expanded`/`setExpanded` and the `halflife.traffic` preference replaced by `open`/`setOpen(v, {focus})`, `contains()` and focusout-to-outside closing. The list, live reloads, keyboard, selection and new marks are unchanged.
+  - `engine/console/app.js`: Escape closes the flyout before the overlay sidebar; a capturing `pointerdown` outside the flyout and its toggle closes it; nav links, `closeSidebar`, the breakpoint change and a docked selection close it; `T` opens it with focus.
+  - `engine/console/styles.css`: accordion rules replaced by the flyout (fixed; docked below the `--topbar-h` top bar at `left: var(--sidebar-w)`; overlay full height beside the sidebar; < 700 px covering the sidebar); flyout header rules; reduced motion.
+  - `engine/test/console-ui.test.mjs`: Traffic checks rewritten (geometry beside the sidebar, unmoved nav and sidebar, unchanged page width, toggle-again, Escape, outside click, sidebar click, nav link, Tab out, reload, selection, `T`, End, live marks, tablet and phone placement, ✕).
+- **Tests and results:**
+  - `node --test engine/test/console-ui.test.mjs`: **13/13**. The first run passed, but the screenshots showed an unstyled flyout header: its rules had been deleted with the AD-33 drawer in session 12. Added and re-run: **13/13**. Screenshots reviewed: docked 1440 px, tablet 820 px, phone 390 px.
+  - `cd engine && npm test`: **75/75** (sanity check; no engine code changed).
+  - Extension, integration and Go plugin: not re-run (no extension, engine, deploy or plugin change).
+- **Spend:** 0 Tavily credits, $0 DeepSeek (TEST FIXTURE engine only).
+- **Git:** one commit on top of `7a7429b`, UTC timestamps. Not pushed; nothing deployed.
+
+---
+
+
 ## 2026-11-03, session 12 (collapsible sidebar with Traffic, AD-35; provider account usage, AD-34)
 
 - **Operator requests:**

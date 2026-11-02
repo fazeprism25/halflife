@@ -1,13 +1,25 @@
 # Halflife: Project State
 
-_Last updated: 2026-11-03 (session 12: collapsible sidebar with Traffic, provider account usage). The persistent source of truth: a fresh session reads this file, then `NEXT_SESSION.md`._
+_Last updated: 2026-11-03 (session 13: Traffic opens as a flyout to the right of the sidebar, AD-36; session 12: collapsible sidebar, provider account usage). The persistent source of truth: a fresh session reads this file, then `NEXT_SESSION.md`._
+
+## Session 13: Traffic opens sideways as a flyout (AD-36)
+
+- **Operator request:** undo AD-35's vertical Traffic accordion and restore the sideways interaction: Traffic opens as a panel to the right of the navigation sidebar. The sidebar itself stays as designed in session 12.
+- **Done (AD-36):**
+  - The Traffic item is one fixed-height button in the sidebar. It toggles a fixed-position flyout at the sidebar's right edge, so the sidebar never grows and no navigation item moves. The flyout overlays the page and never narrows it.
+  - Placement: docked (≥ 1100 px) below the top bar beside the sidebar; overlay 700–1099 px beside the overlay sidebar; below 700 px it covers the sidebar exactly, with ✕ returning to the menu.
+  - Closes with Traffic again, ✕, Escape (innermost layer first), an outside press, a nav link, a selection, Tab out, closing the sidebar, or crossing the breakpoint. Focus moves to the selected report on open and back to the Traffic toggle on close (menu button when an overlay selection closes the sidebar).
+  - Unchanged: the latest 100 reports, live updates, arrows/Home/End, `T`, selection, newer/older, new-report marks, the `halflife.sidebar` and theme preferences. The flyout always starts closed; the session 12 `halflife.traffic` key is no longer read.
+  - Files: `engine/console/{index.html,traffic.js,app.js,styles.css}`, `engine/test/console-ui.test.mjs`. No engine, Tavily usage, spend-guard, limit or extension change.
+- **Tests:** console UI **13/13** (Traffic checks rewritten for the flyout; desktop, tablet 820 px and phone 390 px). The first run passed 13/13; screenshots then showed the flyout header unstyled (its rules had been removed with the AD-33 drawer), fixed and re-run 13/13. Engine suite run as a sanity check (see the implementation log). Extension and integration not re-run (no extension, engine or deploy code changed).
+- **Git:** one new commit on top of `7a7429b`, UTC timestamps. **Not pushed** (awaiting operator approval). Nothing deployed; the running stack still serves the session 12 console.
 
 ## Session 12: collapsible sidebar with Traffic (AD-35), provider account usage (AD-34)
 
 - **Sidebar (AD-35):**
   - The navigation rail and the Inspector's Traffic drawer are now **one sidebar**, collapsed by default, opened from a menu button in a slim top bar (menu, brand, live indicator).
   - Desktop (≥ 1100 px): it docks beside the page, non-modal, and the open/closed choice is remembered. Below 1100 px: a modal overlay that closes with ✕, Escape, outside click, a nav link or choosing a report, and always starts closed.
-  - **Traffic** is a section of the sidebar that expands and collapses on its own (remembered, collapsed by default). It is live on every page and keeps the 100-report window; `T` opens it with focus on the selected report.
+  - **Traffic** is a section of the sidebar that expands and collapses on its own (remembered, collapsed by default; replaced in session 13 by a flyout to the right of the sidebar, AD-36). It is live on every page and keeps the 100-report window; `T` opens it with focus on the selected report.
   - The Traffic toolbar above the report is gone; newer/older and "n of N" moved into the report header.
   - New-report marks show on the Traffic header and on the menu button.
   - Files: `engine/console/{index.html,app.js,traffic.js (new),views/inspector.js,styles.css}`.

@@ -1,12 +1,27 @@
 # Next Session
 
-_Read `PROJECT_STATE.md` first, then this file. Updated in session 12 (2026-11-03): collapsible sidebar with Traffic (AD-35), provider account usage (AD-34), push._
+_Read `PROJECT_STATE.md` first, then this file. Updated in session 13 (2026-11-03): Traffic flyout to the right of the sidebar (AD-36), committed, not pushed._
+
+## Session 13 summary
+- **Traffic flyout (AD-36):** Traffic no longer expands vertically inside the sidebar. Its sidebar item opens a flyout to the right of the sidebar (covering the sidebar below 700 px). It closes with Traffic again, ✕, Escape, an outside press, a nav link, a selection or Tab out. The sidebar redesign (AD-35) and everything else are unchanged.
+- **Tests:** console UI 13/13 (rewritten Traffic checks), engine 75/75. Extension, integration and plugin not re-run (untouched code).
+- **Git:** one commit on top of `7a7429b`, UTC timestamps, **not pushed**. Nothing deployed: the running stack on :8090 still serves the session 12 console.
+
+## Exact next actions (session 14)
+1. **Operator:** approve or decline the push of the session 13 commit. Before pushing, run the secret scan on `git ls-files`.
+2. **Operator, optional:** to see the flyout on the running stack, hot-copy the console (`docker cp engine/console/. halflife-engine-1:/app/engine/console/`, from PowerShell) or rebuild the engine image. This is a deploy-like step on the local stack; do it only when asked.
+3. The session 12 list below (add-on credits, screenshots, operator queue, committing rules) still applies.
+
+## Known limitations (session 13)
+- The flyout is never remembered open (by design, like AD-33). The session 12 `halflife.traffic` localStorage key is no longer read.
+- At 700–1099 px the sidebar plus flyout cover up to 660 px of the page; below 700 px the flyout replaces the menu while open.
+- The UI test covers Edge/Chrome only.
 
 ## Session 12 summary
 - **Sidebar (AD-35):**
   - Navigation and Traffic are one sidebar, collapsed by default, opened from the top bar's menu button.
   - Docked and remembered at ≥ 1100 px; a modal overlay below that.
-  - Traffic is its own collapsible section, live on every page; `T` opens it.
+  - Traffic is its own collapsible section, live on every page; `T` opens it. (Session 13: now a flyout to the right of the sidebar, AD-36.)
   - The Traffic toolbar above the report is gone; newer/older moved into the report header.
 - **Tavily account usage (AD-34):**
   - System shows Tavily's own `account.plan_usage` / `account.plan_limit` with states, the last refresh, a throttled Refresh, and the key-level counter apart.

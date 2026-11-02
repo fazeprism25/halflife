@@ -4,10 +4,14 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ## [Unreleased]
 
+### Changed (2026-11-03): Traffic opens to the right of the sidebar (AD-36)
+- Traffic no longer expands vertically inside the sidebar. Clicking it (or `T`) opens the latest 100 reports in a flyout panel to the right of the sidebar, so the navigation never moves and the report keeps its width. On phones the flyout covers the menu, with ✕ to return.
+- It closes with Traffic again, ✕, Escape, a click outside, a navigation link or choosing a report; focus moves in and back. Live updates, keyboard navigation, selection and new-report marks are unchanged. It always starts closed.
+
 ### Changed (2026-11-03): collapsible sidebar with Traffic (AD-35)
 - The navigation rail and the Inspector's Traffic drawer are now one sidebar. It is collapsed by default and opened from a menu button in a slim top bar; the page uses the full width while it is collapsed.
 - Desktop (≥ 1100 px): the sidebar docks beside the page and the choice is remembered. Narrower screens: a modal overlay that closes with ✕, Escape, a click outside, a navigation link or choosing a report.
-- Traffic (the latest 100 reports) is a section of the sidebar that expands and collapses on its own, is live on every page, and is opened directly with `T`. The Traffic toolbar above the report is removed; newer/older buttons moved into the report header.
+- Traffic (the latest 100 reports) is a section of the sidebar that expands and collapses on its own (replaced by a sideways flyout, AD-36, above), is live on every page, and is opened directly with `T`. The Traffic toolbar above the report is removed; newer/older buttons moved into the report header.
 - The Claim explorer's filter control no longer overflows phone screens.
 
 ### Changed (2026-11-03): Tavily account usage from the provider (AD-34)

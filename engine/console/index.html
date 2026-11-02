@@ -48,16 +48,25 @@
           <a href="#/trends" data-route="trends">Trends</a>
           <a href="#/extension" data-route="extension">Extension</a>
         </nav>
-        <section class="traffic" id="traffic" data-expanded="false">
-          <h2 class="traffic-h">
-            <button class="traffic-toggle" id="traffic-toggle" type="button" aria-expanded="false" aria-controls="traffic-panel" aria-keyshortcuts="t" title="Traffic (T)">
-              <svg class="icon chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg>
-              <span>Traffic</span><span class="traffic-count" id="traffic-count"></span>
-              <span class="new-dot" aria-hidden="true"></span><span class="sr-only" id="traffic-new"></span>
-            </button>
-          </h2>
-          <div class="traffic-panel" id="traffic-panel" hidden></div>
-        </section>
+        <div class="traffic" id="traffic" data-open="false">
+          <button class="traffic-toggle" id="traffic-toggle" type="button" aria-expanded="false" aria-controls="traffic-panel" aria-haspopup="dialog" aria-keyshortcuts="t" title="Traffic (T)">
+            <span class="traffic-label">Traffic</span><span class="traffic-count" id="traffic-count"></span>
+            <span class="new-dot" aria-hidden="true"></span><span class="sr-only" id="traffic-new"></span>
+            <svg class="icon chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg>
+          </button>
+          <!-- Flyout to the right of the sidebar (fixed position, so it never grows the sidebar). -->
+          <div class="traffic-panel" id="traffic-panel" role="dialog" aria-labelledby="traffic-title" data-open="false">
+            <div class="feed-head">
+              <strong id="traffic-title">Traffic</strong>
+              <span class="feed-head-end">
+                <span class="muted mono traffic-summary" id="traffic-summary"></span>
+                <button class="icon-btn" id="traffic-close" type="button" aria-label="Close traffic" title="Close (Esc)">
+                  <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7" /></svg>
+                </button>
+              </span>
+            </div>
+          </div>
+        </div>
         <div class="rail-foot">
           <button class="theme-toggle" id="theme" type="button">Theme: system</button>
         </div>

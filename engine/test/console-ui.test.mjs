@@ -1,4 +1,4 @@
-// Console UI test (collapsible sidebar with Traffic, AD-35; System provider usage, AD-34) in a real
+// Console UI test (collapsible sidebar, AD-35; Traffic flyout, AD-36; System provider usage, AD-34) in a real
 // headless Edge or Chrome, against the TEST FIXTURE engine (scripted model, search and /usage: no
 // tokens, no Tavily credits). Not part of `npm test`, which stays browser-free. From the repo root:
 //
@@ -60,11 +60,25 @@ const state = () => p.eval(`(() => {
   return {
     open: sb.dataset.open === "true", visible: getComputedStyle(sb).visibility === "visible", mode: document.querySelector("#shell").dataset.mode,
     expanded: m.getAttribute("aria-expanded"), mainInert: main.inert, topInert: document.querySelector(".topbar").inert, role: sb.getAttribute("role"),
-    focusInSidebar: sb.contains(a), focusOnMenu: a === m, traffic: tt.getAttribute("aria-expanded"), trafficHidden: document.querySelector("#traffic-panel").hidden,
+    focusInSidebar: sb.contains(a), focusOnMenu: a === m, traffic: tt.getAttribute("aria-expanded"),
+    trafficOpen: document.querySelector("#traffic-panel").dataset.open === "true", trafficVisible: getComputedStyle(document.querySelector("#traffic-panel")).visibility === "visible",
+    focusInTraffic: document.querySelector("#traffic-panel").contains(a), focusOnTrafficToggle: a === tt,
     hash: location.hash, position: document.querySelector(".bar-position")?.textContent ?? "", mainW: main.getBoundingClientRect().width,
-    sbW: sb.getBoundingClientRect().width, pref: localStorage.getItem("halflife.sidebar"), trafficPref: localStorage.getItem("halflife.traffic"),
+    sbW: sb.getBoundingClientRect().width, pref: localStorage.getItem("halflife.sidebar"),
   };
 })()`);
+// Geometry of the sidebar, the Traffic flyout and every navigation item (to prove nothing moves).
+const layout = () => p.eval(`(() => {
+  const r = (el) => { const b = el.getBoundingClientRect(); return { left: Math.round(b.left), right: Math.round(b.right), top: Math.round(b.top), bottom: Math.round(b.bottom), width: Math.round(b.width), height: Math.round(b.height) }; };
+  const sb = document.querySelector("#sidebar");
+  return { sidebar: r(sb), panel: r(document.querySelector("#traffic-panel")), toggle: r(document.querySelector("#traffic-toggle")),
+    nav: [...document.querySelectorAll("#nav a, #theme")].map((a) => r(a)), sbScroll: document.querySelector(".sidebar-inner").scrollHeight };
+})()`);
+const openTraffic = async () => {
+  await clickSel("#traffic-toggle");
+  await until(async () => (await state()).trafficOpen, { what: "Traffic flyout open" });
+  await settle();
+};
 async function key(k, code = k, vk = 0) {
   for (const type of ["keyDown", "keyUp"]) await p.send("Input.dispatchKeyEvent", { type, key: k, code, windowsVirtualKeyCode: vk, ...(type === "keyDown" && (k.length === 1 || k === "Enter") ? { text: k === "Enter" ? "\r" : k } : {}) });
 }
@@ -127,43 +141,76 @@ test("desktop: the menu button docks the sidebar beside the page; the choice is 
   assert.equal((await state()).open, false, "collapsed choice remembered");
 });
 
-test("Traffic is its own section: expands and collapses independently, never widens the sidebar", { skip }, async () => {
+test("Traffic opens sideways, to the right of the sidebar, without moving the navigation", { skip }, async () => {
   await clickSel("#menu-btn");
   await settle();
   let s = await state();
   const [sbW, mainW] = [s.sbW, s.mainW];
-  assert.deepEqual([s.traffic, s.trafficHidden], ["false", true], "collapsed by default");
-  await clickSel("#traffic-toggle");
-  await settle();
+  assert.deepEqual([s.traffic, s.trafficOpen, s.trafficVisible], ["false", false, false], "closed by default, and out of the tab order");
+  const before = await layout();
+  await openTraffic();
   s = await state();
-  assert.deepEqual([s.traffic, s.trafficHidden, s.trafficPref], ["true", false, "open"]);
+  const after = await layout();
+  assert.deepEqual([s.traffic, s.trafficOpen, s.trafficVisible, s.open], ["true", true, true, true]);
+  assert.ok(Math.abs(after.panel.left - after.sidebar.right) <= 1, `flyout starts at the sidebar's right edge (${after.panel.left} vs ${after.sidebar.right})`);
+  assert.equal(after.panel.top, 48, "below the top bar");
+  assert.equal(after.panel.bottom, 900, "full height");
+  assert.ok(after.panel.width >= 320 && after.panel.right <= 1440, `flyout width ${after.panel.width}`);
+  assert.deepEqual(after.nav, before.nav, "no navigation item moved");
+  assert.deepEqual([after.sidebar, after.sbScroll, after.toggle], [before.sidebar, before.sbScroll, before.toggle], "the sidebar did not grow");
+  assert.deepEqual([s.sbW, s.mainW], [sbW, mainW], "the flyout overlays the page instead of narrowing it");
   assert.ok(await p.eval(`document.querySelectorAll("#traffic-panel .feed-item").length >= 7`), "the existing list is shown");
-  assert.deepEqual([s.sbW, s.mainW], [sbW, mainW], "expanding Traffic changes neither the sidebar nor the report width");
-  assert.ok(await p.eval(`document.querySelector("#nav a").getBoundingClientRect().height > 0`), "navigation stays visible with Traffic open");
+  assert.ok(s.focusInTraffic && (await p.eval(`document.activeElement.matches('.feed-item[aria-current="true"]')`)), "focus moves to the selected report");
   await shot("03-desktop-docked-traffic");
-  // independent of the sidebar: close and reopen the sidebar, Traffic stays expanded
-  await clickSel("#menu-btn");
-  await settle();
-  await clickSel("#menu-btn");
-  await settle();
-  assert.equal((await state()).traffic, "true");
+  // clicking Traffic again closes it; focus returns to the toggle
   await clickSel("#traffic-toggle");
   await settle();
   s = await state();
-  assert.deepEqual([s.traffic, s.trafficHidden, s.open, s.trafficPref], ["false", true, true, "closed"], "collapsing Traffic leaves the sidebar open");
-  await clickSel("#traffic-toggle");
+  assert.deepEqual([s.traffic, s.trafficOpen, s.trafficVisible, s.open, s.focusOnTrafficToggle], ["false", false, false, true, true]);
+  // Escape closes the flyout only (the docked sidebar stays), focus back on the toggle
+  await openTraffic();
+  await key("Escape", "Escape", 27);
   await settle();
+  s = await state();
+  assert.deepEqual([s.trafficOpen, s.open, s.focusOnTrafficToggle], [false, true, true]);
+  // a click outside (on the report) closes it
+  await openTraffic();
+  await clickAt(1200, 500);
+  await settle();
+  s = await state();
+  assert.deepEqual([s.trafficOpen, s.open], [false, true]);
+  // a click elsewhere in the sidebar is outside the flyout too
+  await openTraffic();
+  await clickSel("#theme");
+  await settle();
+  assert.equal((await state()).trafficOpen, false);
+  await clickSel("#theme"); await clickSel("#theme"); // back to "system"
+  // following a navigation link closes it
+  await openTraffic();
+  await clickSel('#nav a[data-route="model"]');
+  await settle();
+  s = await state();
+  assert.deepEqual([s.trafficOpen, s.hash, s.open], [false, "#/model", true]);
+  await p.eval(`location.hash = "#/inspector"`);
+  await ready();
+  // reloading never reopens the flyout
+  await openTraffic();
+  await reload();
+  s = await state();
+  assert.deepEqual([s.open, s.trafficOpen], [true, false], "sidebar remembered, flyout starts closed");
 });
 
-test("selecting a report in the sidebar selects it in place (docked: the sidebar stays)", { skip }, async () => {
+test("selecting a report in the flyout selects it in place (docked: the sidebar stays)", { skip }, async () => {
+  await openTraffic();
   await clickSel("#traffic-panel li:nth-child(2) .feed-item");
   await until(async () => (await state()).position.startsWith("2 of"), { what: "second report selected" });
+  await settle();
   const s = await state();
   const id = s.hash.split("/")[2];
   assert.ok(id, "the selection is in the URL");
   await until(() => p.eval(`document.querySelector(".report-id .mono")?.textContent === ${JSON.stringify(id)}`), { what: "detail of the selected report" });
   assert.equal(await p.eval(`document.querySelector('#traffic-panel .feed-item[aria-current="true"]').dataset.id`), id);
-  assert.equal(s.open, true, "docked sidebar is not dismissed by a selection");
+  assert.deepEqual([s.open, s.trafficOpen, s.focusOnTrafficToggle], [true, false, true], "the flyout closes, the docked sidebar stays");
   await clickSel("#menu-btn");
   await settle();
 });
@@ -177,29 +224,41 @@ test("newer/older step through traffic from the report header", { skip }, async 
   assert.equal((await state()).open, false);
 });
 
-test("keyboard: T opens the sidebar on Traffic with focus on the selected report; arrows and Enter select", { skip }, async () => {
+test("keyboard: T opens the Traffic flyout with focus on the selected report; arrows, Home, End and Enter", { skip }, async () => {
   let s = await state();
   assert.equal(s.visible, false, "a collapsed sidebar is out of the tab order");
   await key("t", "KeyT", 84);
-  await until(async () => (await state()).focusInSidebar, { what: "T focuses Traffic" });
+  await until(async () => (await state()).focusInTraffic, { what: "T focuses Traffic" });
+  await settle();
   s = await state();
-  assert.deepEqual([s.open, s.traffic], [true, "true"]);
+  assert.deepEqual([s.open, s.traffic, s.trafficOpen], [true, "true", true]);
   assert.ok(await p.eval(`document.activeElement.matches('.feed-item[aria-current="true"]')`), "focus starts on the selected report");
   await key("ArrowDown", "ArrowDown", 40);
   assert.ok(await p.eval(`document.activeElement === document.querySelectorAll("#traffic-panel .feed-item")[2]`), "ArrowDown focuses the next report");
+  await key("End", "End", 35);
+  assert.ok(await p.eval(`(() => { const a = [...document.querySelectorAll("#traffic-panel .feed-item")]; return document.activeElement === a[a.length - 1]; })()`), "End focuses the last report");
   await key("Home", "Home", 36);
   assert.ok(await p.eval(`document.activeElement === document.querySelector("#traffic-panel .feed-item")`), "Home focuses the first report");
   await key("ArrowDown", "ArrowDown", 40);
   await key("ArrowDown", "ArrowDown", 40);
+  assert.equal(await p.eval(`getComputedStyle(document.activeElement).outlineStyle`), "solid", "visible focus on the focused report");
   await key("Enter", "Enter", 13);
   await until(async () => (await state()).position.startsWith("3 of"), { what: "third report selected" });
-  assert.equal(await p.eval(`getComputedStyle(document.activeElement).outlineStyle`), "solid", "visible focus on the focused report");
+  await settle();
+  s = await state();
+  assert.deepEqual([s.trafficOpen, s.focusOnTrafficToggle], [false, true], "choosing closes the flyout; focus returns to Traffic");
+  // Tab out of an open flyout closes it (non-modal)
+  await key("t", "KeyT", 84);
+  await until(async () => (await state()).focusInTraffic, { what: "T again" });
+  await p.eval(`document.querySelector("#theme").focus()`);
+  await settle();
+  assert.equal((await state()).trafficOpen, false, "focus leaving the flyout closes it");
   await clickSel("#menu-btn");
   await settle();
   assert.equal((await state()).focusOnMenu, true);
 });
 
-test("live: a new report shows on the menu button and in Traffic while collapsed; seeing it clears the mark", { skip }, async () => {
+test("live: a new report shows on the menu button and on Traffic while hidden; opening Traffic clears the mark", { skip }, async () => {
   const before = await p.eval(`document.querySelectorAll("#traffic-panel .feed-item").length`);
   await fetch(base() + "/v1/check", { method: "POST", headers: { "content-type": "application/json", "x-halflife-console": "1" }, body: JSON.stringify({ text: "The latest stable Python release is 3.11." }) });
   await until(() => p.eval(`document.querySelector("#menu-btn").dataset.new === "true"`), { what: "new-report mark on the menu button" });
@@ -210,8 +269,11 @@ test("live: a new report shows on the menu button and in Traffic while collapsed
   await shot("04-desktop-new-report");
   await clickSel("#menu-btn");
   await settle();
-  assert.equal(await p.eval(`document.querySelector("#traffic-toggle").dataset.new`), "false", "seen once Traffic is on screen");
-  assert.equal(await p.eval(`document.querySelector("#menu-btn").dataset.new`), "false");
+  assert.equal(await p.eval(`document.querySelector("#menu-btn").dataset.new`), "false", "the menu mark clears once the sidebar is open");
+  assert.equal(await p.eval(`document.querySelector("#traffic-toggle").dataset.new`), "true", "Traffic keeps its mark until the list is on screen");
+  await openTraffic();
+  assert.equal(await p.eval(`document.querySelector("#traffic-toggle").dataset.new`), "false", "seen once the flyout is open");
+  await key("Escape", "Escape", 27);
   await clickSel("#menu-btn");
   await settle();
 });
@@ -244,15 +306,46 @@ test("tablet: overlay mode starts collapsed, is modal, and closes with Escape, o
   await clickAt(700, 500);
   await settle();
   assert.equal((await state()).open, false);
-  // a selection closes it (Traffic remembered expanded from the desktop tests)
+  // Traffic opens beside the overlay sidebar, inside the viewport, without moving the navigation
   await clickSel("#menu-btn");
   await settle();
-  assert.equal((await state()).traffic, "true");
+  const before = await layout();
+  await openTraffic();
+  const after = await layout();
+  assert.ok(Math.abs(after.panel.left - after.sidebar.right) <= 1, `flyout beside the sidebar (${after.panel.left} vs ${after.sidebar.right})`);
+  assert.ok(after.panel.right <= 820 && after.panel.width >= 320, `flyout ${after.panel.left}–${after.panel.right}`);
+  assert.deepEqual([after.panel.top, after.panel.height], [0, 1000]);
+  assert.deepEqual([after.nav, after.sidebar], [before.nav, before.sidebar], "navigation unchanged");
+  assert.ok(await noHScroll());
+  s = await state();
+  assert.ok(s.focusInTraffic);
+  await shot("05b-tablet-overlay-traffic");
+  // Escape closes the innermost layer first: the flyout, then the sidebar
+  await key("Escape", "Escape", 27);
+  await settle();
+  s = await state();
+  assert.deepEqual([s.trafficOpen, s.open, s.focusOnTrafficToggle], [false, true, true]);
+  await key("Escape", "Escape", 27);
+  await settle();
+  s = await state();
+  assert.deepEqual([s.open, s.focusOnMenu], [false, true]);
+  // an outside click (on the scrim, right of the flyout) closes both
+  await clickSel("#menu-btn");
+  await settle();
+  await openTraffic();
+  await clickAt(780, 500);
+  await settle();
+  s = await state();
+  assert.deepEqual([s.open, s.trafficOpen], [false, false]);
+  // a selection closes both
+  await clickSel("#menu-btn");
+  await settle();
+  await openTraffic();
   await clickSel("#traffic-panel li:nth-child(1) .feed-item");
   await until(async () => (await state()).position.startsWith("1 of"), { what: "selected from the overlay" });
   await settle();
   s = await state();
-  assert.deepEqual([s.open, s.focusOnMenu], [false, true]);
+  assert.deepEqual([s.open, s.trafficOpen, s.focusOnMenu], [false, false, true]);
   // a navigation link closes it and navigates
   await clickSel("#menu-btn");
   await settle();
@@ -281,7 +374,18 @@ test("phone: no horizontal scroll on any page; the overlay fits the screen", { s
   assert.ok(r.width <= 390 - 40 && r.width >= 300, `sidebar width ${r.width}`);
   assert.deepEqual([Math.round(r.top), Math.round(r.height)], [0, 844]);
   assert.ok(await noHScroll());
-  await shot("07-phone-overlay-traffic");
+  await shot("07-phone-overlay");
+  // no room beside the sidebar: the flyout covers the sidebar exactly, and ✕ returns to the menu
+  await openTraffic();
+  const l = await layout();
+  assert.deepEqual([l.panel.left, l.panel.width, l.panel.top, l.panel.height], [0, l.sidebar.width, 0, 844], "flyout covers the sidebar");
+  assert.ok(await noHScroll());
+  assert.ok((await state()).focusInTraffic);
+  await shot("07b-phone-traffic");
+  await clickSel("#traffic-close");
+  await settle();
+  let s = await state();
+  assert.deepEqual([s.trafficOpen, s.open, s.focusOnTrafficToggle], [false, true, true], "✕ closes the flyout back to the menu");
   await clickAt(340, 400); // the uncovered strip (right of the 300 px sidebar, left of the scrollbar gutter)
   await settle();
   assert.equal((await state()).open, false);
@@ -292,11 +396,13 @@ test("selecting a report from another page opens it in the Inspector", { skip },
   await p.eval(`location.hash = "#/trends"`);
   await settle();
   await key("t", "KeyT", 84);
-  await until(async () => (await state()).focusInSidebar, { what: "Traffic from another page" });
+  await until(async () => (await state()).focusInTraffic, { what: "Traffic from another page" });
+  await settle();
   const id = await p.eval(`document.querySelectorAll("#traffic-panel .feed-item")[1].dataset.id`);
   await clickSel("#traffic-panel li:nth-child(2) .feed-item");
   await until(() => p.eval(`location.hash === "#/inspector/${id}" && document.querySelector(".report-id .mono")?.textContent === "${id}"`), { what: "inspector opened on that report" });
   assert.equal(await p.eval(`document.querySelector('#traffic-panel .feed-item[aria-current="true"]')?.dataset.id`), id);
+  assert.equal((await state()).trafficOpen, false);
   await clickSel("#menu-btn");
   await settle();
 });

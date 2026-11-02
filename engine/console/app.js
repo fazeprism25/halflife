@@ -76,8 +76,7 @@ function openSidebar({ focus = "nav" } = {}) {
   if (mode() === "docked") writePref(true);
   applySidebar();
   if (focus === "traffic") {
-    traffic.setExpanded(true);
-    if (!traffic.focusSelected()) document.getElementById("traffic-toggle").focus();
+    traffic.setOpen(true, { focus: true });
   } else if (focus === "nav" && (!was || mode() === "overlay")) {
     (sidebar.querySelector('#nav a[aria-current="page"]') ?? sidebar.querySelector("#nav a")).focus();
   }
@@ -86,6 +85,7 @@ function openSidebar({ focus = "nav" } = {}) {
 function closeSidebar({ restoreFocus = true } = {}) {
   if (!sidebarOpen) return;
   const hadFocus = sidebar.contains(document.activeElement);
+  traffic.setOpen(false); // the Traffic flyout belongs to the sidebar
   sidebarOpen = false;
   if (mode() === "docked") writePref(false);
   applySidebar();
@@ -98,17 +98,29 @@ scrim.addEventListener("click", () => closeSidebar());
 // Crossing the breakpoint: an overlay never carries over as a docked column or the reverse;
 // docked width restores the remembered choice, overlay width starts closed.
 dockQuery.addEventListener("change", () => {
+  traffic.setOpen(false);
   sidebarOpen = mode() === "docked" ? readPref() : false;
   applySidebar();
 });
-// In overlay mode, following a navigation link closes the panel.
+// Following a navigation link closes the Traffic flyout, and in overlay mode the panel too.
 document.getElementById("nav").addEventListener("click", (e) => {
-  if (e.target.closest("a") && mode() === "overlay") closeSidebar({ restoreFocus: false });
+  if (!e.target.closest("a")) return;
+  traffic.setOpen(false);
+  if (mode() === "overlay") closeSidebar({ restoreFocus: false });
 });
+// A press outside the Traffic flyout (and its toggle) closes it, in either mode. In overlay mode a
+// press on the scrim also closes the sidebar (its own click handler).
+document.addEventListener("pointerdown", (e) => {
+  if (traffic.open && !traffic.contains(e.target)) traffic.setOpen(false);
+}, true);
 
 document.addEventListener("keydown", (e) => {
   if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
-  if (e.key === "Escape" && sidebarOpen && mode() === "overlay") {
+  if (e.key === "Escape" && traffic.open) {
+    // Escape closes the innermost layer first: the flyout, then (overlay) the sidebar.
+    e.preventDefault();
+    traffic.setOpen(false, { focus: true });
+  } else if (e.key === "Escape" && sidebarOpen && mode() === "overlay") {
     e.preventDefault();
     closeSidebar();
   } else if ((e.key === "t" || e.key === "T") && !e.target.closest?.("input, textarea, select, [contenteditable]")) {
@@ -127,6 +139,7 @@ const traffic = createTraffic({
     if (currentView === "inspector" && inspectorSelect) inspectorSelect(id);
     else location.hash = `#/inspector/${id}`;
     if (mode() === "overlay") closeSidebar();
+    else traffic.setOpen(false, { focus: true });
   },
 });
 document.addEventListener("halflife:traffic-new", (e) => {

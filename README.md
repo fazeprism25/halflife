@@ -19,6 +19,7 @@ Halflife is **not a general fact-checker**. It answers one question: *has this c
 - [Technology stack](#technology-stack)
 - [Quick start](#quick-start)
 - [Usage](#usage)
+- [ChatGPT extension](#chatgpt-extension)
 - [Tests](#tests)
 - [Demo](#demo)
 - [Cost controls](#cost-controls)
@@ -222,13 +223,27 @@ The console (port 8090) additionally uses `/v1/events` (server-sent events) and 
 
 More console screenshots, captured from a local run on 2026-11-02, are in [`docs/assets/screenshots/`](docs/assets/screenshots/). Local clock times and the time zone have been blanked out; nothing else was changed.
 
+## ChatGPT extension
+
+An opt-in Manifest V3 browser extension ([`extension/`](extension/README.md)) adds **Check freshness** under completed ChatGPT answers (chatgpt.com, chat.openai.com).
+- **One answer at a time:** clicking sends only that answer and the user message before it to **your local engine**. The engine runs the same pipeline as gateway traffic: extraction, freshness model, Bifrost-routed judge, Tavily relay and credit guard.
+- **In ChatGPT:** a compact result appears under the answer.
+- **In the console:** a **ChatGPT** section holds:
+  - **Activity:** checked answers, linked to the Inspector
+  - **Claim explorer:** verdicts, expected lifespan, quote-verified sources
+  - **Trends:** real per-day aggregates
+  - **Extension:** pairing, opt-in settings, privacy statement, deletion
+
+The extension holds no provider key. It pairs with the console through a one-time code and gets a revocable token bound to its origin, which can only create and read its own checks. Nothing is sent until you click. Install steps, data flow and the security model are in [extension/README.md](extension/README.md); the design is AD-32 in [research/ARCHITECTURE_DECISIONS.md](research/ARCHITECTURE_DECISIONS.md).
+
 ## Tests
 
 ```bash
-cd engine && npm test && cd ..                                         # 54 engine unit/integration tests (no Docker, no keys)
+cd engine && npm test && cd ..                                         # 65 engine unit/integration tests (no Docker, no keys)
 docker build -f deploy/gateway.Dockerfile --target plugin-test --no-cache-filter plugin-test --progress=plain .
                                                                        # 21 Go plugin tests with -race, plus benchmarks
 node deploy/test/integration.mjs                                       # 13 end-to-end checks against real Bifrost
+node --test "extension/test/*.test.mjs"   # 8 adapter + 6 end-to-end browser-extension tests (Edge/Chrome)
 ```
 
 The integration suite builds and starts the real gateway, plugin and engine, with scripted **test fixtures** (`deploy/test/fixtures.mjs`) standing in for the LLM provider and Tavily, so it needs **no credentials and spends nothing**. It uses port 8080, so stop a running stack first. Live tests against real services (which spend credits, bounded by a guard) are described in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
@@ -262,6 +277,7 @@ A claim refused by any limit is reported as `not_checked` (reason `budget`): nev
 - Engine callers are authenticated separately: plugin (ingest token), relay (bearer token injected by Bifrost), console (header, optionally a token via `HALFLIFE_CONSOLE_TOKEN`).
 - Answers and web evidence are treated as untrusted data: delimited in prompts, outputs schema-validated, spans and quotes checked against their sources.
 - **Data stored locally:** the engine stores prompts, answers, claims and evidence excerpts in SQLite (14-day retention by default); Bifrost's own log store also records requests. Virtual keys are stored only as short SHA-256 fingerprints. Text sent through Halflife is sent to the configured LLM provider and claim text to Tavily.
+- **ChatGPT extension:** opt-in per answer, with no background capture and no telemetry. It sends only to a loopback engine with a paired, origin-bound token, and its checks never feed the learning model. See [extension/README.md](extension/README.md).
 - Ports bind to localhost. The console has **no authentication unless `HALFLIFE_CONSOLE_TOKEN` is set** — do not expose port 8090.
 
 Details and threat boundaries: [docs/SECURITY.md](docs/SECURITY.md).
@@ -300,7 +316,8 @@ Measured on 2026-11-02 with real DeepSeek and Tavily calls, on items drawn from 
 | `plugin/` | Go plugin for Bifrost v2.4.0: hooks, triage, per-request state, delivery, tests |
 | `engine/src/` | engine: freshness model, extraction, verification, evidence rules, store, API |
 | `engine/test/` | engine tests (`node:test`) and test fakes |
-| `engine/console/` | operator console (vanilla ES modules) |
+| `engine/console/` | operator console (vanilla ES modules), including the ChatGPT pages |
+| `extension/` | Manifest V3 browser extension for ChatGPT: platform adapter, content script, service worker, popup, tests |
 | `shared/temporal-cues.json` | lexical cues shared by the plugin and the engine |
 | `deploy/` | Dockerfiles, Compose file, config renderer, setup script, `.env.example` |
 | `deploy/test/` | integration suite, test fixtures, live scripts, spend guard |

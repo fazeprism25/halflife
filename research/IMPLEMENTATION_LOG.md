@@ -4,6 +4,77 @@ Newest first. Every entry records what was done, the files touched, the tests ru
 
 ---
 
+## 2026-11-03, session 10 (ChatGPT browser extension, AD-32)
+
+### Request
+An opt-in ChatGPT extension that sends one user-selected answer to the existing engine. It needs four dashboard pages (Activity, Claim explorer, Trends, Extension settings), security and privacy controls, and tests. No deployment, no store publication, no submission, and $0 Tavily.
+
+### Research
+- Three reference extensions were inspected through the GitHub API: their source, licences and manifests. The comparison is in `research/CHATGPT_EXTENSION.md` §1.
+- Key fact: ChatGPT dropped `data-message-author-role` in late September 2026, according to the Apache-2.0 shadow extension's October code.
+- Chrome documentation: content scripts can't make cross-origin fetches, so the service worker does. Local Network Access was not verified for extension service workers; it is a manual item.
+- Branded Chrome and Edge 156 ignore `--load-extension`. CDP `Extensions.loadUnpacked` works (probed).
+
+### Done
+- **Engine:**
+  - `engine/src/extension.ts`: pairing, tokens, checks, the compact view, console queries, deletion and retention, and the HTTP routes.
+  - `store.ts`: additive migration.
+  - `pipeline.ts`: the `extension` source, client fields, `client` in the report view.
+  - `server.ts`: loopback-only extension routes ahead of the generic caller check; console routes in the console-only section.
+  - `main.ts`: extension sweep.
+- **Extension** (`extension/`):
+  - manifest (MV3)
+  - `src/adapters/chatgpt.js` (layouts A, B and C; streaming; virtualised questions)
+  - `src/content.js` (closed shadow UI, page-theme aware, debounced scan with a maximum wait, stability re-read, polling, context-loss handling, diagnostics)
+  - `src/background.js` (IndexedDB token, sender and payload validation, URL building, error mapping)
+  - popup (pairing, status, pause, recent checks, diagnostics, disconnect)
+  - icons (`scripts/make-icons.mjs`)
+  - README
+- **Console:** `views/{activity,claims,trends,extension,ext-common}.js`, a "ChatGPT" nav group, styles.
+- **Tests:**
+  - `engine/test/extension.test.ts` (11)
+  - `extension/test/adapter.test.mjs` (8, headless browser with fixture DOMs)
+  - `extension/test/e2e.test.mjs` (6: real extension via CDP, fixture page as https://chatgpt.com, fixture engine)
+  - `extension/test/cdp.mjs`
+  - `engine/test/fixture-server.ts` (TEST FIXTURE engine for visual review and e2e)
+- **Docs:**
+  - README section, SECURITY section, THIRD_PARTY_NOTICES attribution, CHANGELOG
+  - AD-32
+  - `research/CHATGPT_EXTENSION.md`
+
+### Bugs found and fixed during the session
+1. `activity()` computed `at_risk` but did not return it (engine test).
+2. The adapter read text inside nested search units twice (adapter test).
+3. **The scan was a pure debounce.** While an answer streamed, the buttons for earlier answers never appeared (e2e). Fix: a 1 s maximum wait.
+4. **The mutation filter dropped attribute records.** `every` over an empty node list is true, so streaming-attribute flips were ignored (code review). Fix: only childList records made entirely of our own hosts are ignored.
+5. **The in-page card followed the OS theme instead of ChatGPT's.** Light page with a dark OS gave illegible text (screenshot). Fix: html class, then background luminance, then the page's `color-scheme`.
+6. The popup rendered "nullnull" because `Element.append(null)` writes "null" (screenshot).
+7. The popup sender check required "no tab", which would refuse the popup opened as a tab. The URL alone identifies it.
+8. Claim explorer wording: "none evidence", and "Verified" for unverifiable claims. Also, source links are now restricted to http(s).
+9. Questions over 16,000 characters were dropped instead of truncated.
+
+### Tests
+- **Engine:** 65/65 (54 existing plus 11 new).
+- **Extension:** 14/14 (adapter 8, e2e 6) in headless Edge 156.0.4314.58.
+- **Integration:** 13/13 against real Bifrost v2.4.0, the real plugin and the rebuilt engine image (fixture upstreams, provider keys blanked, 0 spend).
+- **Go plugin:** not re-run (no plugin change).
+- **Live smoke test** against the running stack (assess-only):
+  - One real DeepSeek extraction through Bifrost (claims `org.leadership` plus `historical.fact`), 0 Tavily credits. The engine total stayed at 128.
+  - The smoke check was deleted and its token revoked afterwards. Live verification was restored to on.
+- **Migration on the live database:** 308 reports kept, 4 columns and `extension_tokens` added. Backup: `engine/data/backup-before-extension-migration.db` (gitignored, integrity ok).
+- **Visual review:** headless Edge screenshots (dark) of the four new pages, the in-ChatGPT card and the popup. These are review material in the scratchpad, not committed.
+
+### Spend
+- Tavily: 0 this session; engine lifetime 128 of the 700 cap, account ceiling 800.
+- DeepSeek: one extraction call, well under $0.01.
+
+### Not done or not verified
+- **Not tested on real chatgpt.com.** That needs the operator's signed-in browser; see the manual checklist in `research/CHATGPT_EXTENSION.md` §5.
+- **Local Network Access** behaviour in real Chrome is unverified.
+- **No commit was made in this session.**
+
+---
+
 ## 2026-11-02, session 9 (published on GitHub)
 
 ### Operator authorisation

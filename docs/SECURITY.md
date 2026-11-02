@@ -52,6 +52,26 @@ Do not route confidential or personal data through Halflife unless your agreemen
 - Engine API routes are separated by caller: the plugin can only ingest and heartbeat; relayed callers get the read and `/v1/check` routes; only the console gets `/v1/events` and `/v1/playground`. Requests with no valid credential get 401.
 - The relay exposes only an allow-listed set of engine routes and requires a virtual key with the relay grant.
 
+## Browser extension (AD-32)
+
+- **What leaves the browser:** only after the user clicks **Check freshness**, and only to a loopback engine address. The request holds:
+  - that answer
+  - the user message before it
+  - ChatGPT's message id and the model slug
+  - SHA-256 of the conversation id
+
+  There is no background capture and no telemetry, and the extension never reads ChatGPT's session token.
+- **Pairing:** the console (authenticated) creates a one-time 8-character code valid for 10 minutes. The extension exchanges it from its `chrome-extension://` origin for a random 256-bit token. The engine stores only the token's SHA-256 and the origin.
+- **Origin binding:** a request with a different `Origin` is refused.
+- **Loopback only:** `/v1/extension/*` is served only for a loopback `Host` header (DNS-rebinding defence). Through the Bifrost relay those routes return 403.
+- **Token scope:** create checks, read its own checks, minimal status. Nothing else.
+- **Token storage:** the service worker's IndexedDB, not `chrome.storage.local`, which content scripts running in the ChatGPT page can read.
+- **Server-side limits:** strict schema with unknown fields refused, answer ≤ 60,000 characters, question ≤ 4,000, per-minute and daily limits, a kill switch, and an estimate-only mode (0 search credits).
+- **Data:** extension checks can be deleted individually or all at once, and expire after their own retention period (default 30 days). Revoke a browser from the console or with **Disconnect** in the popup.
+- **Residual risks:**
+  - Another local process that obtains the token can submit checks. The token is the secret; the origin check only stops web pages.
+  - Without `HALFLIFE_CONSOLE_TOKEN`, any local process can create pairing codes, like every other console route.
+
 ## Threat boundaries
 
 | Threat | Mitigation | Residual risk |

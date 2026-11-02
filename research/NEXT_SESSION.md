@@ -1,6 +1,30 @@
 # Next Session
 
-_Read `PROJECT_STATE.md` first, then this file. Updated in session 9 (2026-11-02): published on GitHub._
+_Read `PROJECT_STATE.md` first, then this file. Updated in session 10 (2026-11-03): ChatGPT browser extension._
+
+## Session 10 summary (ChatGPT extension, AD-32), uncommitted
+- **Built:**
+  - `extension/`: MV3; ChatGPT adapter for layouts A, B and C; shadow-DOM button and result; service worker holding the token in IndexedDB; popup with pairing, pause, recent checks, diagnostics and disconnect.
+  - Engine `/v1/extension/*` in `engine/src/extension.ts`: pairing codes, origin-bound tokens, dedup, limits, kill switch, estimate-only mode, `learn:false`, retention and deletion, console queries.
+  - Additive database migration.
+  - Console pages: Activity, Claim explorer, Trends, Extension.
+- **Tests:**
+  - engine 65/65 and integration 13/13
+  - extension 14/14: `node --test "extension/test/*.test.mjs"`, needs Edge or Chrome, plus openssl for the e2e certificate (Git's mingw64 openssl is found automatically)
+  - live assess-only smoke test passed and was cleaned up
+- **The running stack already serves the new code** (engine image rebuilt). Live database backup: `engine/data/backup-before-extension-migration.db`.
+- **Visual review:** `node engine/test/fixture-server.ts --seed --port 8099`, then open <http://127.0.0.1:8099/#/activity>. This is TEST FIXTURE data: scripted model and search, 0 spend.
+
+## Exact next actions (session 11)
+1. **Operator: try the extension on real ChatGPT.** Load `extension/` unpacked, pair it from Console → ChatGPT → Extension, and run the 10-step checklist in `research/CHATGPT_EXTENSION.md` §5.
+   - The popup's diagnostics line shows whether the adapter recognises the live DOM.
+   - If no layout is recognised, inspect one assistant message's attributes and add a layout to `extension/src/adapters/chatgpt.js`, plus a fixture test in `extension/test/adapter.test.mjs`.
+2. **Commit session 10, after a secret scan of the staged files,** with UTC timestamps: `GIT_AUTHOR_DATE="$(date -u +%s) +0000" GIT_COMMITTER_DATE="$(date -u +%s) +0000" git commit …`. Push only when authorised.
+3. **Optional:**
+   - add the extension to `research/DEMO_SCRIPT.md` and `SUBMISSION.md` (one live check costs at most 3 Tavily credits)
+   - Firefox support (MV3 `background.scripts`)
+   - an e2e case for the `data-is-streaming` attribute path
+4. **Then the earlier queue:** demo video, problem wording, submission. All of these need the operator.
 
 ## Session 9 summary (publication)
 - **Public repository:** <https://github.com/fazeprism25/halflife> (public, default branch `main`, Apache-2.0 detected, no Actions workflows).
@@ -64,7 +88,7 @@ Quality gate passed: 54 engine tests, 21 Go tests with `-race`, 13 integration c
 - **The shell environment exports `DEEPSEEK_API_KEY`.** Compose prefers it over `deploy/.env`.
 - **DeepSeek defaults to thinking:** clients must send `thinking: {type: "disabled"}`, or small `max_tokens` budgets return empty content.
 
-## Exact next actions
+## Earlier next actions (session 9; items 1, 2 and 5 still open)
 1. **Record the demo video. Needs the human operator** (no screen recorder or Chrome extension was available to the agent).
    - Run `node deploy/demo/run-demo.mjs` once to warm up. Then record the steps of `research/DEMO_SCRIPT.md` in the console with Xbox Game Bar (Win+Alt+R).
    - Verifications done on 2026-11-02 are reused within their windows (0 credits). Step 2b (NBA champion) forces a fresh search.

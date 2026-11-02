@@ -312,3 +312,66 @@ Each entry: decision, why, alternatives considered or rejected. Decisions marked
 - **History (resolved in session 8):** the two pre-release local commits still contained the original screenshots, the FreshQA-derived files and text naming the zone. The operator chose option (a): the local history was replaced by a single parentless root commit built from the sanitised tree.
   - The old history is preserved privately outside the repository (a verified git bundle plus a copy of the old `.git`). It is not reachable from any ref, and the old objects were pruned from this repository.
   - Rejected: (b) publishing as-is and accepting the exposure.
+
+## AD-32 ChatGPT browser extension: an opt-in client of the existing engine (session 10, 2026-11-03)
+- **Decision:** a Manifest V3 extension (`extension/`) adds **Check freshness** under completed ChatGPT answers. A click sends that one answer and the user message before it to the local engine's new `/v1/extension/*` routes (`engine/src/extension.ts`). Those routes call the unchanged `Engine.accept` with `source: "extension"`. Research, comparison and checklists: `research/CHATGPT_EXTENSION.md`.
+- **One engine, no second path:**
+  - Extraction, the freshness model, the Bifrost-routed judge, the Tavily relay, the credit guard (AD-19) and the per-response cap all apply unchanged.
+  - The extension has no provider key and never talks to Bifrost or Tavily.
+  - `/v1/check` was not reused directly, because it needs a relay or console credential and has no dedup or ownership. The new routes add only what the browser case needs.
+- **Learning off (`learn: false`)** for every extension check. Users choose which answers to check, and selected traffic biases class change rates (the AD-23 reasoning).
+- **Authentication:**
+  - The console creates a one-time 8-character code (10 minutes, at most 5 outstanding; 10 failures withdraw them all).
+  - The extension service worker claims it from its `chrome-extension://` origin and receives `hlx_` + 32 random bytes.
+  - Only `sha256(token)` is stored, bound to that origin. A request whose `Origin` differs is refused. A request with no Origin is accepted, because the token is the secret.
+  - Extension routes are served only for a loopback `Host` header, a DNS-rebinding defence for the unauthenticated claim route. Through the Bifrost relay (Host `engine:8090`) they return 403.
+  - **Rejected:** a static token in `.env` copied into the extension (no per-browser revocation, needs a restart to rotate); no auth for loopback (any local web page could post); cookies.
+- **Scope:** an extension token can create checks, read its own checks and read a minimal status. It cannot reach `/v1/reports`, `/v1/check`, events, the playground, settings, other connections' checks or deletion.
+- **Validation:**
+  - strict schema; unknown fields are refused
+  - platform allow-list `chatgpt`
+  - answer ≤ 60,000 characters after whitespace normalisation, question ≤ 4,000, body ≤ 256 KB (the existing limit)
+  - id, model and hash patterns
+- **Limits:** settings in kv `extension_settings`:
+  - kill switch `accept_checks`
+  - `live_verification` (off = assess-only, 0 credits)
+  - `daily_limit` 50, `per_minute_limit` 6 per connection
+  - `retention_days` 30, swept hourly alongside the global retention
+- **Dedup:**
+  - `client_ref = chatgpt:<message id>` (or `chatgpt:hash:<24 hex>` when the DOM has no id), plus `content_hash = sha256(platform + normalised answer)`.
+  - Same ref and same hash: the existing report is returned with `duplicate: true`, at no cost.
+  - A different hash (edited text) or a regenerated answer (new id): a new report.
+  - `force: true` re-checks, and still reuses T0 evidence inside reuse windows.
+- **Schema:**
+  - additive columns `reports.client_ref`, `content_hash`, `client_id`, `client_meta`
+  - table `extension_tokens`
+  - indexes on `(client_ref, content_hash)` and `(source, created_at)`
+  - Migrated in place by `Store.migrate()`. Verified on the live database (308 reports kept).
+- **Overall assessment** (`assessmentOf`) is derived only from the engine's own summary:
+  - `outdated` = stale (≥ moderate evidence)
+  - `possibly_outdated` = refuted on weak evidence
+  - `unverified` = at-risk claims unchecked, or current only on weak evidence, or unverifiable
+  - `current` = all checked claims current at ≥ moderate evidence
+  - `low_risk`, `no_time_sensitive`, `no_claims`
+- **Freshness score (console only):** time-sensitive claims confirmed current at ≥ moderate evidence, out of all time-sensitive claims. It is shown as a fraction (e.g. 1/2) with its definition, never as a percentage or a probability.
+- **Extension design:**
+  - **Platform adapter:** `src/adapters/chatgpt.js` reads three layouts:
+    - A, `data-message-author-role`
+    - B, the September 2026 `data-chatgpt-search-unit-key` units, as observed by the Apache-2.0 shadow extension (re-implemented, not copied)
+    - C, turn shells
+    - If none matches, no button is shown.
+  - **Completion:** the stop button, the turn-state attribute and per-message streaming markers are checked, then a 600 ms text-stability re-read on click.
+  - **Virtualised question turns** are hydrated by a brief scroll, and the scroll position is restored.
+  - **Scanning** is debounced with a 1 s maximum wait, so streaming doesn't starve earlier answers.
+  - **UI** is a closed shadow root that follows ChatGPT's own theme (html class, then background luminance, then the page's `color-scheme`), not the OS.
+- **Token storage:** in the service worker's IndexedDB. **Rejected: `chrome.storage.local`**, which content scripts (the ChatGPT page's renderer) can read by default.
+- **Permissions:** `storage`, plus hosts ChatGPT, `127.0.0.1` and `localhost`. **Rejected:** `tabs`, `scripting`, `cookies`, `unlimitedStorage`, `externally_connectable`, and reading ChatGPT's session token to call `/backend-api` (two reference projects do this; it handles the user's credential and fetches whole conversations).
+- **Console:** four views in the existing vanilla module style and design tokens:
+  - Activity (`#/activity/<id>`, linking to the Inspector for the full verification)
+  - Claim explorer
+  - Trends (real per-day aggregates, status-palette outcome bar, table view)
+  - Extension (connections, pairing, install steps, opt-in settings, privacy statement, deletion)
+- **Testing route:**
+  - Branded Chrome and Edge 137+ ignore `--load-extension`, so the end-to-end test loads the extension through CDP `Extensions.loadUnpacked` (`--remote-debugging-pipe --enable-unsafe-extension-debugging`).
+  - It serves a TEST FIXTURE page as `https://chatgpt.com` through `--host-resolver-rules` and a throwaway self-signed certificate.
+  - Headless `--dump-dom` runs no rendering frames: no rAF, and no IntersectionObserver after a programmatic scroll. So the adapter races rAF against a timer, and the virtualisation fixture hydrates with a layout poll.

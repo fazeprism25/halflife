@@ -1,9 +1,13 @@
 // Halflife console entry: routing, live connection, theme, auth.
 import { api, clear, h, setConsoleToken, subscribe } from "./lib.js";
+import { renderActivity } from "./views/activity.js";
 import { renderCheck } from "./views/check.js";
+import { renderClaims } from "./views/claims.js";
+import { renderExtension } from "./views/extension.js";
 import { renderInspector } from "./views/inspector.js";
 import { renderModel } from "./views/model.js";
 import { renderSystem } from "./views/system.js";
+import { renderTrends } from "./views/trends.js";
 
 const main = document.getElementById("main");
 const listeners = new Set();
@@ -13,7 +17,10 @@ export const onEngineEvent = (fn) => {
 };
 
 let cleanup = null;
-const routes = { inspector: renderInspector, check: renderCheck, model: renderModel, system: renderSystem };
+const routes = {
+  inspector: renderInspector, check: renderCheck, model: renderModel, system: renderSystem,
+  activity: renderActivity, claims: renderClaims, trends: renderTrends, extension: renderExtension,
+};
 
 function route() {
   const [name, ...rest] = (location.hash.replace(/^#\/?/, "") || "inspector").split("/");

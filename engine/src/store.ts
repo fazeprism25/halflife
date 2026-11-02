@@ -11,7 +11,7 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS reports (
   id TEXT PRIMARY KEY,
   created_at INTEGER NOT NULL,
-  source TEXT NOT NULL,              -- gateway | api | playground
+  source TEXT NOT NULL,              -- gateway | api | playground | extension
   mode TEXT NOT NULL,
   model TEXT,
   prompt TEXT,
@@ -113,6 +113,29 @@ export class Store {
     if (file !== ":memory:") fs.mkdirSync(path.dirname(file), { recursive: true });
     this.db = new DatabaseSync(file);
     this.db.exec(SCHEMA);
+    this.migrate();
+  }
+
+  /** Additive migrations for databases created by earlier versions (columns are never dropped). */
+  private migrate() {
+    const cols = new Set(this.all("PRAGMA table_info(reports)").map((r) => String(r.name)));
+    // Browser-extension checks (AD-32): the client's message reference, a hash of the checked text,
+    // the extension connection that sent it, and minimal client metadata (JSON).
+    for (const c of ["client_ref", "content_hash", "client_id", "client_meta"]) {
+      if (!cols.has(c)) this.db.exec(`ALTER TABLE reports ADD COLUMN ${c} TEXT`);
+    }
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS reports_client ON reports(client_ref, content_hash);
+      CREATE INDEX IF NOT EXISTS reports_source ON reports(source, created_at DESC);
+      CREATE TABLE IF NOT EXISTS extension_tokens (
+        id TEXT PRIMARY KEY,
+        token_hash TEXT NOT NULL UNIQUE,   -- sha256 of the bearer token; the token itself is never stored
+        origin TEXT NOT NULL,              -- chrome-extension://<id> the pairing code was claimed from
+        label TEXT,
+        created_at INTEGER NOT NULL,
+        last_used_at INTEGER,
+        revoked_at INTEGER
+      );`);
   }
 
   close() {

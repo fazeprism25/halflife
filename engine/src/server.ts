@@ -3,6 +3,8 @@
 // Callers and how they authenticate:
 //   plugin   POST /v1/ingest, /v1/plugin/heartbeat     Bearer HALFLIFE_INGEST_TOKEN (internal network)
 //   relay    /relay/halflife/v1/* via Bifrost          Bearer HALFLIFE_RELAY_TOKEN (injected by Bifrost; VK-gated)
+//   extension /v1/extension/*                         Bearer hlx_… token from pairing (AD-32), bound to the
+//                                                      extension origin; loopback Host only; own checks only
 //   console  same-origin browser requests              x-halflife-console header (custom header ⇒ CORS
 //                                                      preflight ⇒ cross-site requests are blocked); value
 //                                                      must equal HALFLIFE_CONSOLE_TOKEN when one is set
@@ -14,6 +16,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { CLASS_TABLE_VERSION } from "./classes.ts";
 import type { Config } from "./config.ts";
+import { ExtError, ExtensionService, extensionConsoleRoute, extensionRoute, isLoopbackHost } from "./extension.ts";
 import { InputError, type Engine } from "./pipeline.ts";
 import type { Store } from "./store.ts";
 
@@ -28,7 +31,7 @@ export type Health = {
   bifrost: { reachable: boolean | null; checked_at: number | null; error: string | null };
 };
 
-export type ServerDeps = { cfg: Config; engine: Engine; store: Store; health: Health; fetchImpl?: typeof fetch };
+export type ServerDeps = { cfg: Config; engine: Engine; store: Store; health: Health; fetchImpl?: typeof fetch; ext?: ExtensionService };
 
 const safeEq = (a: string, b: string) => {
   const x = Buffer.from(a);
@@ -117,6 +120,7 @@ function serveStatic(req: http.IncomingMessage, res: http.ServerResponse, pathna
 export function createServer(d: ServerDeps): http.Server {
   const { cfg, engine, store, health } = d;
   const f = d.fetchImpl ?? fetch;
+  const ext = d.ext ?? new ExtensionService(store, engine);
   let pluginBeat: any = store.kvGet("plugin_heartbeat") ?? null;
 
   const route = async (req: http.IncomingMessage, res: http.ServerResponse) => {
@@ -129,6 +133,19 @@ export function createServer(d: ServerDeps): http.Server {
     if (!p.startsWith("/v1/")) {
       if (serveStatic(req, res, p)) return;
       return send(res, 404, { error: "not found" });
+    }
+
+    // -------------------------------------------------- browser extension (AD-32)
+    if (p.startsWith("/v1/extension/")) {
+      if (!isLoopbackHost(req.headers.host)) return send(res, 403, { error: "extension routes are served on loopback only" });
+      const origin = typeof req.headers.origin === "string" ? req.headers.origin : undefined;
+      if (p === "/v1/extension/pair" && m === "POST") return send(res, 201, ext.claim(await readJSON(req), origin));
+      const b = bearer(req);
+      if (b.startsWith("hlx_")) {
+        const conn = ext.authenticate(b, origin);
+        if (!conn) return send(res, 401, { error: "extension token is invalid or revoked" });
+        return extensionRoute(ext, req, res, p, m, url, conn, send, readJSON);
+      }
     }
 
     const who = caller(req, cfg);
@@ -190,6 +207,7 @@ export function createServer(d: ServerDeps): http.Server {
     if (who !== "console") return send(res, 404, { error: "not found" });
     if (p === "/v1/events" && m === "GET") return events(req, res);
     if (p === "/v1/playground" && m === "POST") return playground(await readJSON(req), res);
+    if (p.startsWith("/v1/extension/") && (await extensionConsoleRoute(ext, req, res, p, m, url, send, readJSON))) return;
     return send(res, 404, { error: "not found" });
   };
 
@@ -276,7 +294,7 @@ export function createServer(d: ServerDeps): http.Server {
 
   return http.createServer((req, res) => {
     route(req, res).catch((e) => {
-      const status = e instanceof HttpError || e instanceof InputError ? e.status : 500;
+      const status = e instanceof HttpError || e instanceof InputError || e instanceof ExtError ? e.status : 500;
       if (status === 500) console.error("[engine] request failed:", e);
       if (!res.headersSent) send(res, status, { error: status === 500 ? "internal error" : e.message });
       else res.end();

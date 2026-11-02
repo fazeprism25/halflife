@@ -15,6 +15,11 @@ Halflife's own source code is licensed under the [Apache License 2.0](LICENSE). 
 | Tavily, DeepSeek | commercial API services, governed by their terms of service | No | called at runtime with the user's own keys |
 | Wikidata (feasibility sprint only) | CC0 | aggregate statistics only | `experiments/feasibility/results/wikidata_*.json` |
 
+The browser extension (`extension/`) has **no dependencies**. Its ChatGPT DOM handling was informed by reading the source of three public projects (inspected 2026-11-03; no code copied):
+- [dialoguesai/chatgpt-shadow-extension](https://github.com/dialoguesai/chatgpt-shadow-extension) (Apache-2.0): the September 2026 "search unit" attributes and its streaming indicators, re-implemented in `extension/src/adapters/chatgpt.js`.
+- [maks-bond/chatgpt-conversation-exporter](https://github.com/maks-bond/chatgpt-conversation-exporter) (no licence): only its published observation that off-screen turns are empty shells. None of its code is used.
+- [kappilyadav/chatgpt-exporter](https://github.com/kappilyadav/chatgpt-exporter) (MIT): reviewed for comparison; nothing used.
+
 The engine (`engine/`) has **no npm dependencies**. The console references fonts by name only (Inter, JetBrains Mono, Iowan Old Style and system fallbacks); no font files are bundled. Its icons are simple SVG paths written for this project.
 
 ## Bifrost

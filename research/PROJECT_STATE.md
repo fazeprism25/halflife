@@ -1,6 +1,19 @@
 # Halflife: Project State
 
-_Last updated: 2026-11-02 (session 9: published on GitHub). The persistent source of truth: a fresh session reads this file, then `NEXT_SESSION.md`._
+_Last updated: 2026-11-03 (session 10: ChatGPT browser extension, uncommitted). The persistent source of truth: a fresh session reads this file, then `NEXT_SESSION.md`._
+
+## Session 10: ChatGPT browser extension (AD-32), uncommitted
+
+- **What:** an opt-in MV3 extension (`extension/`), engine routes `/v1/extension/*` (`engine/src/extension.ts`), and four console pages under "ChatGPT": Activity, Claim explorer, Trends, Extension. Design and research: `research/CHATGPT_EXTENSION.md`.
+- **Verified:**
+  - engine 65/65
+  - extension 14/14 (adapter 8 + e2e 6, real unpacked extension in headless Edge via CDP, fixture ChatGPT page, fixture engine)
+  - integration 13/13 (real Bifrost and plugin, rebuilt engine image)
+  - live assess-only smoke test (real DeepSeek extraction, 0 Tavily)
+  - live database migrated in place (backup `engine/data/backup-before-extension-migration.db`)
+- **Not verified:** real chatgpt.com (needs the operator's signed-in browser; checklist in `CHATGPT_EXTENSION.md` §5) and Chrome Local Network Access behaviour.
+- **Running stack:** the engine image was rebuilt and restarted with this code, so the console at :8090 already has the new pages. Extension settings are at their defaults (accept on, live verification on, 50 a day, 6 a minute, 30-day retention). There are no paired browsers.
+- **Git:** all session 10 work is **uncommitted**. Commit with UTC timestamps once the operator agrees; see NEXT_SESSION.
 
 ## Repository (sessions 6–9)
 
@@ -48,7 +61,8 @@ Halflife is a freshness intelligence layer for LLM applications. Its premise: ev
 | Deployment | **Done:** `setup.mjs` plus compose; config rendered from the keys present | integration suite builds from scratch |
 | Hosted LLM: **DeepSeek via Bifrost's native provider** | **Live-verified** (AD-17). Judge `deepseek/deepseek-flash`, thinking off | `live-deepseek.json` 6/6; about 3.5k tokens per checked claim |
 | **Tavily free-allowance guard** | **Done** (AD-19): engine `CreditGuard` plus script `spend-guard.mjs`; ceiling 800 of 1000, 200 reserved | 10 unit tests; ledger `deploy/test/results/spend-ledger.jsonl` |
-| Tests | **54 engine, 21 plugin (`-race`), 13 integration: all pass** (session 5) | `deploy/test/results/integration.json`, `plugin-test-2026-11-02.log` |
+| ChatGPT extension (AD-32) | **Done, not yet tried on real chatgpt.com** | 11 engine + 8 adapter + 6 e2e tests (session 10) |
+| Tests | **65 engine, 21 plugin (`-race`), 13 integration, 14 extension: all pass** (session 10; plugin last run session 5, unchanged since) | `deploy/test/results/integration.json`, `plugin-test-2026-11-02.log` |
 | **Real LLM + Tavily run** | **DONE** (session 4): live scripts, gateway end to end with 5 prompt types, cache policy live | `deploy/test/results/live-*.json` |
 | Tavily MCP (dev tooling) | **Decided: not connected** (AD-18) | duplicates WebSearch/WebFetch/curl plus the scripted API probes |
 | Evaluation harness | **v1/v2 + FreshQA done** (AD-28): detection 100 items (assess-only), verification 59 items with hand adjudication. Calibration not done | `eval/results/latest-freshqa.md` |
@@ -104,6 +118,11 @@ Halflife is a freshness intelligence layer for LLM applications. Its premise: ev
 - **Disk:** 4.5 GB free on C:. Rebuild only the engine image.
 
 ## Current priorities (in order)
+
+0. **ChatGPT extension:**
+   - The operator runs the manual chatgpt.com checklist (`research/CHATGPT_EXTENSION.md` §5). Fix the adapter if the live DOM differs.
+   - Commit session 10 (UTC timestamps) and push when authorised.
+   - Optionally add the extension to the demo script.
 
 1. **Record the demo video** (needs a human with a screen recorder; follow `research/DEMO_SCRIPT.md`).
 2. **Confirm the official Problem 04 and 06 wording and rubric,** then finalise `research/SUBMISSION.md`. Submit by 2026-11-15, but only when the operator authorises it.

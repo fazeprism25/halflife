@@ -6,6 +6,7 @@ import { CacheActions } from "./cache.ts";
 import { loadConfig } from "./config.ts";
 import { Bus } from "./events.ts";
 import { BifrostLLM, type LLM } from "./llm.ts";
+import { ExtensionService } from "./extension.ts";
 import { Engine } from "./pipeline.ts";
 import { VERSION, createServer, type Health } from "./server.ts";
 import { Store } from "./store.ts";
@@ -101,9 +102,13 @@ async function probeBifrost() {
 }
 void probeBifrost();
 setInterval(() => void probeBifrost(), 15000).unref();
-setInterval(() => store.sweep(cfg.retentionDays * 24 * 3600 * 1000), 3600_000).unref();
+const ext = new ExtensionService(store, engine);
+setInterval(() => {
+  store.sweep(cfg.retentionDays * 24 * 3600 * 1000);
+  ext.sweep(); // extension checks have their own, user-set retention (AD-32)
+}, 3600_000).unref();
 
-const server = createServer({ cfg, engine, store, health });
+const server = createServer({ cfg, engine, store, health, ext });
 server.listen(cfg.port, cfg.host, () => {
   console.log(`[engine] halflife ${VERSION} listening on ${cfg.host}:${cfg.port}`);
   console.log(`[engine] bifrost=${cfg.bifrostUrl} llm=${llm ? cfg.llmModel : "off"} search=${search ? "tavily via relay" : "off"} cache_admin=${cfg.adminToken ? "on" : "off"} playground=${cfg.demoVK ? "on" : "off"}`);

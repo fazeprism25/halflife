@@ -4,6 +4,22 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ## [Unreleased]
 
+### Added (2026-11-03): ChatGPT browser extension (AD-32)
+
+- `extension/`: an opt-in Manifest V3 extension for chatgpt.com and chat.openai.com.
+  - A **Check freshness** action on completed answers, with a compact in-page result.
+  - A popup: connection, pause, recent checks, diagnostics.
+  - A replaceable ChatGPT platform adapter.
+- Engine `/v1/extension/*`:
+  - pairing codes and origin-bound, revocable tokens
+  - strict validation, dedup by message id and content hash
+  - per-minute and daily limits, a kill switch and an estimate-only mode
+  - `learn:false`, retention and deletion
+  - activity, claims and trends queries
+- Additive SQLite migration: `reports.client_ref/content_hash/client_id/client_meta`, table `extension_tokens`.
+- Console: a **ChatGPT** section with Activity, Claim explorer, Trends and Extension (settings, privacy, deletion).
+- Tests: 11 engine tests, 8 adapter tests in headless Edge/Chrome, 6 end-to-end tests that load the real extension via CDP. TEST FIXTURE engine server: `engine/test/fixture-server.ts`.
+
 ### Current state (2026-11-02)
 
 - Feature-complete hackathon prototype, verified end to end with real DeepSeek and Tavily.

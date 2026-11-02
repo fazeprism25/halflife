@@ -38,7 +38,11 @@ export type IngestInput = {
   learn?: unknown;
   link_only?: unknown;
   sync?: unknown;
+  /** Browser-extension checks only (AD-32); validated by extension.ts before they get here. */
+  client?: { ref: string; content_hash: string; id: string; meta: Record<string, unknown> };
 };
+
+export type Source = "gateway" | "api" | "playground" | "extension";
 
 export class InputError extends Error {
   status: number;
@@ -162,7 +166,7 @@ export class Engine {
   // ------------------------------------------------------------ intake
 
   /** Validate and record an answer. Returns the report id and what happened to it. */
-  accept(inp: IngestInput, source: "gateway" | "api" | "playground"): { id: string; status: string } {
+  accept(inp: IngestInput, source: Source): { id: string; status: string } {
     const text = typeof inp.text === "string" ? inp.text : "";
     if (!text.trim()) throw new InputError("text is required");
     if (text.length > MAX_TEXT) throw new InputError(`text exceeds ${MAX_TEXT} characters`, 413);
@@ -194,6 +198,7 @@ export class Engine {
       text, truncated: inp.truncated === true ? 1 : 0, stream: inp.stream === true ? 1 : 0,
       vk_fingerprint: vkPrint, cache_id: cacheId, cache_hit: cacheHit, ttl_set: ttlSet,
       triage_groups: JSON.stringify(groups), status: "queued",
+      ...(source === "extension" && inp.client ? { client_ref: inp.client.ref, content_hash: inp.client.content_hash, client_id: inp.client.id, client_meta: JSON.stringify(inp.client.meta) } : {}),
       summary: asOf || inp.assess_only === true || inp.learn === false ? JSON.stringify({ requested_as_of: asOf, assess_only: inp.assess_only === true, no_learn: inp.learn === false }) : null,
     };
 
@@ -521,6 +526,7 @@ export class Engine {
       extraction: r.extraction, extraction_note: r.extraction_note, linked_report_id: r.linked_report_id,
       credits: r.credits, llm_calls: r.llm_calls, started_at: r.started_at, finished_at: r.finished_at,
       summary: r.summary ? JSON.parse(r.summary) : null, claims,
+      client: r.source === "extension" ? { ref: r.client_ref, meta: r.client_meta ? JSON.parse(r.client_meta) : {} } : null,
     };
   }
 

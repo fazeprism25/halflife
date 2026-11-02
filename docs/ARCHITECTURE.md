@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the components of Halflife as implemented, how data flows between them, where the integration boundaries are, and the decisions that shaped them. The authoritative, numbered decision record with alternatives considered is [`research/ARCHITECTURE_DECISIONS.md`](../research/ARCHITECTURE_DECISIONS.md) (AD-01 to AD-28); this page summarises it and links to the decisions by number.
+This document describes the components of Halflife as implemented, how data flows between them, where the integration boundaries are, and the decisions that shaped them. The authoritative, numbered decision record with alternatives considered is [`research/ARCHITECTURE_DECISIONS.md`](../research/ARCHITECTURE_DECISIONS.md) (AD-01 to AD-38); this page summarises it and links to the decisions by number.
 
 ## Components
 
@@ -27,7 +27,8 @@ This document describes the components of Halflife as implemented, how data flow
 | **Gateway** | `deploy/gateway.Dockerfile` | Bifrost `transports/v2.4.0` (commit `e869c3f`, verified at build) compiled as a dynamically linked binary so it can load Go plugins. Bifrost's web UI is replaced by a stub page. |
 | **Plugin** | `plugin/` | Inline work only: correlation IDs, lexical triage, cache TTL / `no-store`, text capture, bounded asynchronous hand-off, response headers, synchronous `verify` mode. |
 | **Engine** | `engine/src/` | Extraction, classification, freshness model, verification, evidence rating, learning, cache actions, storage, HTTP API, SSE, console hosting. |
-| **Console** | `engine/console/` | Operator UI served by the engine. |
+| **Console** | `engine/console/` | Operator UI served by the engine (vanilla ES modules, no build step); see [Console](#console) below. |
+| **ChatGPT extension** | `extension/`, engine `engine/src/extension.ts` | Opt-in MV3 browser extension that sends one selected ChatGPT answer to the local engine's `/v1/extension/*` routes; analysed by the same pipeline with `learn: false` (AD-32). |
 | **Config renderer** | `deploy/render-config.mjs` | One-shot Compose service; writes Bifrost `config.json` with `env.NAME` references only, and the engine's `runtime.json` (default judge model, playground models, whether Tavily is enabled). |
 | **Shared cues** | `shared/temporal-cues.json` | Lexical cue groups with keywords, regexes and TTL caps, used by the plugin (and the engine's heuristic extractor). |
 
@@ -79,6 +80,18 @@ Every hook recovers panics and passes the original response through unchanged. T
 - **Reuse window:** after a verification, the time at which P(outdated since verification) reaches θ.
 - **Calibration:** none. The priors are hand-set, the posterior has been updated by few observations (12 gateway-derived after evaluation observations were removed), and the evaluation did not measure calibration. It is labelled *estimated · uncalibrated* everywhere it is shown.
 
+## Console
+
+The console (`engine/console/`, served by the engine on port 8090) is plain HTML, CSS and ES modules with no framework or build step. It reads the engine API with the `x-halflife-console` header and listens to `/v1/events` (SSE).
+
+- **Shell (AD-35):** a top bar (menu, brand, live indicator) and one collapsible sidebar holding the navigation, collapsed by default. At ≥ 1100 px it docks beside the page and the choice is remembered (`halflife.sidebar` in localStorage); below that it is a modal overlay that always starts closed.
+- **Traffic (AD-36, AD-37):** `traffic.js` keeps one live list of the latest 100 reports for every page, reloaded on engine events. Its sidebar item opens a fixed-position panel to the right of the sidebar, `clamp(360px, 100vw − sidebar − 40px, 440px)` wide, from 700 px up; below 700 px it is a full-screen sheet with a labelled Close button. The header is fixed and the list scrolls. It never widens the sidebar or moves a navigation item, always starts closed, and closes on toggle, ✕/Close, Escape (innermost layer first), an outside press, a navigation link, a selection, Tab out or a breakpoint change. `T` opens it from any page.
+- **Pages:** `views/inspector.js`, `check.js`, `model.js`, `system.js` and, for the extension, `activity.js`, `claims.js`, `trends.js`, `extension.js`.
+- **System page (AD-34):** shows Tavily's `account.plan_usage` / `account.plan_limit` exactly as reported (with Current/Stale/Unavailable states and the key-level counter shown separately) and, apart from it, Halflife's lifetime ceiling, daily limit and the account guard derived from the reported allowance.
+- **Caching (AD-37):** every console file is served `cache-control: no-cache` with a weak ETag and answers `If-None-Match` with 304, under a strict Content Security Policy.
+
+The earlier layouts (a permanent navigation rail, then an Inspector-only Traffic drawer, AD-33, then a vertical Traffic section, AD-35) are superseded; their records are kept in the decision log.
+
 ## Integration boundaries
 
 | Boundary | Direction | Authentication | Notes |
@@ -89,7 +102,9 @@ Every hook recovers panics and passes the original response through unchanged. T
 | Engine → gateway LLM | via gateway | engine VK + `x-halflife-internal` token | plugin skips these requests only if the token matches (AD-08) |
 | Engine → Tavily | via `/relay/tavily` | engine VK; Bifrost holds the Tavily key | per-credit pricing, 402 on budget exhaustion |
 | Engine → cache admin | via gateway | `BIFROST_ADMIN_TOKEN` | `DELETE /api/cache/clear/{id}` |
-| Browser → console | localhost:8090 | `x-halflife-console` header; token only if `HALFLIFE_CONSOLE_TOKEN` is set | console-only routes: `/v1/events`, `/v1/playground` |
+| Browser → console | localhost:8090 | `x-halflife-console` header; token only if `HALFLIFE_CONSOLE_TOKEN` is set | console-only routes: `/v1/events`, `/v1/playground`, `/v1/usage/refresh`, extension settings |
+| Extension → engine `/v1/extension/*` | loopback only | one-time pairing code → origin-bound bearer token (only its SHA-256 stored) | loopback `Host` required; 403 through the relay; a token reads only its own checks (AD-32) |
+| Engine → Tavily `/usage` | via `/relay/tavily` | engine VK | free; read at start and when the 5-minute cache expires, plus a manual refresh limited to one per 120 s (AD-34) |
 | Gateway → providers / Tavily | outbound internet | provider keys from the gateway's environment | |
 
 ## Deployment
@@ -106,6 +121,9 @@ Every hook recovers panics and passes the original response through unchanged. T
 | LLM produces no numbers | Spans, enums, dates and quotes can be checked in code; numbers cannot | AD-09 |
 | Quotes verified in code; replacement values need a quote | Prevent fabricated or inferred evidence from becoming a verdict | AD-12, AD-20 |
 | Static claims are abstentions, not "current" | Halflife measures freshness, not general truth | AD-21 |
-| Application-side Tavily allowance guard | Spend must stay inside the free plan; Tavily's counter lags | AD-19 |
+| Application-side Tavily account guard | Spend must stay within a share of the allowance Tavily's `/usage` reports (never assumed or hardcoded); Tavily's counter lags | AD-19, AD-34 |
+| Lifetime and daily credit limits independent of the provider allowance | A larger provider allowance must never raise what Halflife spends | AD-34 |
+| One collapsible sidebar; Traffic as a panel beside it | The report keeps the full width; navigation never moves | AD-35, AD-36, AD-37 |
+| Console files served `no-cache` with an ETag | HTML, CSS and JS can never mix versions after an update | AD-37 |
 | Integration tests use labelled fixtures | Reproducible without credentials; no mocks in the product path | AD-13, AD-16 |
 | DeepSeek `deepseek-flash`, thinking off | Cost, latency and determinism; outputs are verified in code anyway | AD-17 |

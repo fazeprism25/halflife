@@ -4,12 +4,22 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ## [Unreleased]
 
+### Current state (2026-11-03, session 15)
+- Feature-complete hackathon prototype, verified end to end with real DeepSeek and Tavily; ChatGPT extension tested manually on real chatgpt.com.
+- Tests on the final code: engine 76/76, console UI 15/15, extension 14/14, integration 13/13 (re-run in session 15); Go plugin 21/21 with `-race` (last run 2026-11-02; plugin unchanged since).
+- Not production-ready: single node, SQLite, not load-tested, outdated-probability score uncalibrated. Not deployed; the hackathon entry is submitted separately.
+
+### Documentation (2026-11-03): screenshots and final documentation pass
+- `docs/assets/screenshots/`: the seven 2026-11-02 screenshots, which showed the layout before the collapsible sidebar, are replaced by fifteen captured from the running stack at `a2a296e` (headed Edge, UTC time zone): Inspector, sidebar, Traffic panel on desktop, tablet and phone, claim panel, freshness model, System (integrations; Tavily usage and Halflife limits), the four ChatGPT pages, and two clearly labelled TEST FIXTURE shots of the extension. An index records what each shows and where its data came from.
+- README: why claims decay at different rates, configuration, console layout (sidebar, Traffic panel, phone sheet), freshness model and its limitations, install steps for the extension, test results with dates, implementation status, and more known limitations (Tavily add-on credits, extension, UI test coverage, console caching).
+- `docs/ARCHITECTURE.md` gains Console and extension sections and boundaries (AD-32 to AD-37); `docs/DEVELOPMENT.md` and `docs/INSTALLATION.md` describe console revalidation instead of the old 5-minute cache; `deploy/.env.example`, `research/SUBMISSION.md` and `research/DEMO_SCRIPT.md` describe the Tavily guard as a share of the allowance Tavily reports, not "the free plan".
+
 ### Fixed (2026-11-03): Traffic panel on small screens; console caching (AD-37)
 - Beside the sidebar the Traffic panel is now 360–440 px wide, depending on the space available. Below 700 px it opens as a full-screen sheet with a labelled Close button instead of a 300 px column. Its header stays visible and only the list scrolls.
 - Console files are always revalidated (`no-cache` with an ETag). Previously CSS and JS were cached for 5 minutes while the HTML was not, so right after an update a browser could mix versions and show the Traffic panel inside the sidebar.
 
 ### Changed (2026-11-03): Traffic opens to the right of the sidebar (AD-36)
-- Traffic no longer expands vertically inside the sidebar. Clicking it (or `T`) opens the latest 100 reports in a flyout panel to the right of the sidebar, so the navigation never moves and the report keeps its width. On phones the flyout covers the menu, with ✕ to return.
+- Traffic no longer expands vertically inside the sidebar. Clicking it (or `T`) opens the latest 100 reports in a flyout panel to the right of the sidebar, so the navigation never moves and the report keeps its width. On phones the flyout covered the menu, with ✕ to return (replaced below 700 px by a full-screen sheet, AD-37, above).
 - It closes with Traffic again, ✕, Escape, a click outside, a navigation link or choosing a report; focus moves in and back. Live updates, keyboard navigation, selection and new-report marks are unchanged. It always starts closed.
 
 ### Changed (2026-11-03): collapsible sidebar with Traffic (AD-35)
@@ -52,7 +62,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 - Console: a **ChatGPT** section with Activity, Claim explorer, Trends and Extension (settings, privacy, deletion).
 - Tests: 11 engine tests, 8 adapter tests in headless Edge/Chrome, 6 end-to-end tests that load the real extension via CDP. TEST FIXTURE engine server: `engine/test/fixture-server.ts`.
 
-### Current state (2026-11-02)
+### State at publication (2026-11-02)
 
 - Feature-complete hackathon prototype, verified end to end with real DeepSeek and Tavily.
 - Tests: 54 engine tests, 21 Go plugin tests with `-race`, 13 integration checks — all passing.

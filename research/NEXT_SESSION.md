@@ -1,6 +1,25 @@
 # Next Session
 
-_Read `PROJECT_STATE.md` first, then this file. Updated in session 14 (2026-11-03): Traffic flyout responsive layout and console revalidation (AD-37); sessions 13 and 14 committed, not pushed._
+_Read `PROJECT_STATE.md` first, then this file. Updated in session 15 (2026-11-03): final documentation, screenshots and verification (AD-38); sessions 13, 14 and 15 committed, not pushed._
+
+## Session 15 summary
+- **Finalisation only:** README and docs brought up to date, 15 new screenshots (AD-38), records updated. No product code changed.
+- **Running stack:** engine image rebuilt from `a2a296e` with operator approval; :8090 now serves the final console with `no-cache` + ETag. Volumes kept.
+- **Tests:** engine 76/76, console UI 15/15, extension 14/14 (after one 9/14 run, see limitations), integration 13/13; plugin 21/21 from session 5 (not re-run, unchanged).
+- **Git:** documentation commit on top of `a2a296e`; `main` is 3 ahead of `origin/main`. Not pushed, deployed or submitted.
+
+## Exact next actions (session 16)
+1. **Operator:** review the three local commits (`4398a83`, `a2a296e`, the session 15 documentation commit) and the screenshots, then approve or decline the push. Re-run the secret scan on `git ls-files` right before pushing.
+2. **Operator, optional screenshots only they can take:** the extension on real chatgpt.com (button and compact result under a real answer), and the popup paired with the real engine. Both need their signed-in browser; crop out the account name and conversation list. If added, record them in `docs/assets/screenshots/README.md` as real.
+3. **Operator queue (unchanged):** record the demo video (`research/DEMO_SCRIPT.md`), confirm the official Problem 04/06 wording, submit by 2026-11-15 only with explicit authorisation.
+4. **Optional small fix:** the claim timeline's "changed …" label is clipped at the claim panel's right edge.
+5. **Committing:** UTC timestamps (`GIT_AUTHOR_DATE="$(date -u +%s) +0000" GIT_COMMITTER_DATE="$(date -u +%s) +0000" git commit …`); push only with operator authorisation.
+
+## Known limitations (session 15)
+- The extension test suite failed once (9/14: pairing timed out, four dependent e2e tests followed) and then passed 6/6 alone and 14/14 combined on unchanged code. Not diagnosed.
+- Trends shows real data only, so with one real check its charts are sparse.
+- The Activity and Claim explorer screenshots show the operator's real chatgpt.com question as typed ("who is hte prime minister of uk"); harmless but unedited.
+- C: has about 2.4 GB free after the engine rebuild.
 
 ## Session 14 summary
 - **Traffic responsive fix (AD-37):** 360–440 px flyout beside the sidebar from 700 px; a full-screen sheet with a labelled Close button below 700 px. The header is fixed and the list scrolls.

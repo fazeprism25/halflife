@@ -1,11 +1,11 @@
 # Halflife — Demo Script (≈ 5 minutes)
 
-_Written 2026-11-02 (session 5). Every fact shown below was checked independently of the Tavily evidence that produced the verdict; the sources are listed under "Fact checks"._
+_Written 2026-11-02 (session 5); console navigation and the optional extension step updated in session 15. Every fact shown below was checked independently of the Tavily evidence that produced the verdict; the sources are listed under "Fact checks"._
 
 ## Before the demo (10 minutes ahead)
 
 1. `docker compose -f deploy/docker-compose.yml up -d` (no rebuild). Wait for both containers to be `healthy` (`docker ps`).
-2. Open the console at http://localhost:8090. Open **System**: Bifrost reachable, plugin "Reporting", judge and Tavily "Working".
+2. Open the console at http://localhost:8090. Navigation is in the sidebar behind the menu button (top left); **Traffic** in the sidebar, or `T`, opens the live report list beside it. Open **System**: Bifrost reachable, plugin "Reporting", judge and Tavily "Working".
 3. Spend check: System → "Tavily account usage" (as Tavily reports it) and "Halflife spending limits". Engine credits must leave room for at least 20 credits today (the daily cap is 150).
 4. **Optional, to show fresh Tavily calls on stage instead of reused verifications:** verifications are reused for their reuse window (T0, 0 credits). If the prompts below were run within the last few days, expect "reused verification, 0 credits". That is correct behaviour and worth saying out loud. For a guaranteed live search, use the ad-lib prompt in step 2b.
 5. Rehearse with `node deploy/demo/run-demo.mjs`. It runs every step below through the real stack and writes a transcript to `deploy/demo/results/`.
@@ -46,7 +46,9 @@ DeepSeek says Node.js 22 → **superseded** (Node.js 26 is current); React 19 �
 
 The second answer is a Bifrost **cache hit** in a few ms; the report is "linked" to the original analysis: **0 LLM calls, 0 Tavily credits**.
 
-**6. Cost controls (30 s).** System page: engine credits today vs daily cap, lifetime vs cap, and the account guard (80% of the free 1,000-credit plan, the rest reserved; Tavily's own counter lags, so the guard also counts locally). Per-report spend is on every report. Say: "If any limit is reached, claims are marked 'not checked: budget'. They are never given a verdict and never retried."
+**6. Cost controls (30 s).** System page: engine credits today vs daily cap, lifetime vs cap, "Tavily account usage" exactly as Tavily's `/usage` reports it, and, separately, Halflife's lifetime ceiling, daily limit and the account guard (80% of the reported allowance, the rest reserved; Tavily's own counter lags, so the guard also counts locally). Credits shown only on Tavily's dashboard, such as add-on credits, are not counted. Per-report spend is on every report. Say: "If any limit is reached, claims are marked 'not checked: budget'. They are never given a verdict and never retried."
+
+**6b. Optional: the ChatGPT extension (30 s, at most 3 Tavily credits).** Only if the extension is loaded and paired (ChatGPT → Extension in the console). In ChatGPT, ask a question whose answer may be dated, click **Check freshness** under the answer, and show the compact result, then **Open in Halflife** and the console's ChatGPT → Activity and Claim explorer. Say: "Nothing is sent until I click, and only this answer and its question go to my local engine." Do this in a browser profile without private conversations visible.
 
 **7. Close (15 s).** "On a FreshQA-based evaluation, detection recall was 98% at 85% precision, and verification precision was 96% on decided items. It is a freshness checker, not a general fact-checker."
 
@@ -63,7 +65,7 @@ The second answer is a Bifrost **cache hit** in a few ms; the report is "linked"
 1. Gateway or engine down: `docker compose -f deploy/docker-compose.yml up -d`; inference still works while the engine is down (fail-open is tested).
 2. Network / Tavily / DeepSeek outage: switch to the **recorded run**. It is labelled as a recording, never presented as live:
    - Transcript of a real run: `deploy/demo/results/demo-2026-11-02T16-04-21-277Z.md` (every report ID, header, quote and URL). Kept private: local to the maintainer, not in the repository.
-   - Console stills from that session: originals in `deploy/demo/backup/` (private); sanitised copies, with clock times and time zone blanked, in `docs/assets/screenshots/`.
+   - Console stills from that session: originals in `deploy/demo/backup/` (private). Current screenshots of the console and extension, with their data provenance, are in `docs/assets/screenshots/` (see its README).
    - A screen-recorded video is **not yet made** (no screen recorder was available to the agent). Record one with Xbox Game Bar (Win+Alt+R) while running steps 1–6.
 3. Budget refusal on stage ("not checked: budget"): that is the cost guard working. Show it on the System page.
 

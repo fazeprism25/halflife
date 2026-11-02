@@ -543,3 +543,15 @@ Each entry: decision, why, alternatives considered or rejected. Decisions marked
     - a short 373 × 420 screen: full-height panel, the list scrolls on its own, the header stays at the top, the last report reachable
   - Desktop now asserts 440 px.
   - `engine/test/http.test.ts` adds a test that console files are `no-cache` with an ETag and revalidate to 304.
+
+## AD-38 Documentation screenshots: captured in UTC from the running stack, provenance recorded (session 15, 2026-11-03)
+- **Problem:** the seven screenshots in `docs/assets/screenshots/` (AD-31) showed the layout before the collapsible sidebar (AD-35 to AD-37), so the README illustrated a console that no longer exists. AD-31 sanitised them by painting over local clock times and the zone.
+- **Decision:**
+  - Capture from the **running local stack** at the commit being documented (the engine image is rebuilt first and the served files checked by hash), in a **headed** Edge window with a fresh profile, driven over CDP.
+  - Set the browser's time zone to **UTC** (`Emulation.setTimezoneOverride`) instead of blanking times afterwards. Every time shown is then UTC, consistent with the UTC timestamps in committed files, so nothing reveals a local zone, and no pixels are edited.
+  - Fixed viewports: 1440 × 900 desktop, 1024 × 768 tablet, 390 × 844 phone at 2×; dark theme; reduced motion.
+  - Show **real reports** where they exist. Where a real capture would expose a personal account (the extension on chatgpt.com), use the real extension on a **TEST FIXTURE** page with a visible banner and the scripted fixture engine, and label it in the file name, the README and the index.
+  - `docs/assets/screenshots/README.md` records, per file, what it shows and whether the data are real or fixtures. Screenshots that misrepresent the current UI are removed rather than kept beside the new ones.
+- **Checked:** PNG chunks are `IHDR`, `iCCP` (Skia's generic profile), `IDAT`, `IEND`; no text or time chunks. No key, token or `.env` value is visible; the System page shows only usage counts and the plan name that Tavily's `/usage` returns.
+- **Amends AD-31** (screenshot sanitisation by blanking). The rule "never put local clock times or the zone in a committed file" is unchanged.
+- **Rejected:** headless-only captures from the UI test (fixture data only); blanking times again (edits pixels, easy to miss one); a fixture-seeded Trends page (would look like real usage).

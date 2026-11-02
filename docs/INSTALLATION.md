@@ -109,8 +109,8 @@ Set these in `deploy/.env` (or your shell). Defaults in parentheses.
 | `HALFLIFE_CACHE_TTL_SECONDS` (`3600`) | Bifrost cache TTL; the plugin only ever lowers it |
 | `HALFLIFE_DAILY_CREDIT_CAP` (`150`) | engine Tavily credits per day |
 | `HALFLIFE_TOTAL_CREDIT_CAP` (`700`) | engine Tavily credits, lifetime |
-| `HALFLIFE_TAVILY_CEILING_FRACTION` (`0.8`, max `0.95`) | share of the Tavily plan allowance the guard allows |
-| `HALFLIFE_TAVILY_ACCOUNT_GUARD` (`1`) | read Tavily `/usage` before paid calls; fail closed |
+| `HALFLIFE_TAVILY_CEILING_FRACTION` (`0.8`, max `0.95`) | share of the account allowance Tavily's `/usage` API reports (`account.plan_limit`) that the guard allows. No allowance is assumed; credits shown only on Tavily's dashboard (such as add-on credits) are not counted |
+| `HALFLIFE_TAVILY_ACCOUNT_GUARD` (`1`) | read Tavily `/usage` (free; at start, then at most every 5 minutes) and refuse paid calls beyond the guard, on any pay-as-you-go usage, or when usage or a finite allowance cannot be read |
 | `HALFLIFE_ENGINE_BUDGET_USD` (`2`), `HALFLIFE_DEMO_BUDGET_USD` (`1`) | Bifrost daily dollar budgets on the engine and demo virtual keys |
 | `HALFLIFE_CONSOLE_TOKEN` (empty) | require this token for console API calls (the console prompts for it) |
 | `HALFLIFE_OLLAMA_URL` | add a local Ollama provider (e.g. `http://host.docker.internal:11434`); untested end to end |
@@ -144,4 +144,5 @@ Note that `down -v` deletes the engine's persistent spend ledger, which the life
 | Console shows Tavily "not configured" | no `TAVILY_API_KEY` reached the `config` service; check `deploy/.env` and recreate |
 | Claims show `not checked: budget` | a spend limit was reached (System page shows which); this is by design |
 | HTTP 402 from DeepSeek | the DeepSeek account balance is exhausted |
-| Console changes not visible | it is served with `max-age=300`; hard-refresh |
+| Console changes not visible | console files are revalidated on every load (`no-cache` with an ETag); if you upgraded from an engine older than `a2a296e`, hard-refresh once. Changes under `engine/src/` need an engine image rebuild |
+| Extension shows "engine isn't reachable" | the engine must run on the same machine; check <http://127.0.0.1:8090/v1/health> and the address entered in the extension popup |

@@ -4,6 +4,26 @@ Newest first. Every entry records what was done, the files touched, the tests ru
 
 ---
 
+## 2026-11-03, session 15 (final documentation, screenshots and verification; AD-38)
+
+- **Operator request:** bring the README, documentation, screenshots and records up to date for public review; no new features; one separate documentation commit; no push, deploy or submission.
+- **Running stack check:** `halflife-engine-1` served `4398a83`'s `index.html` and `styles.css` and the old `server.ts` (md5 against `git show`), with CSS still `public, max-age=300`. Reported to the operator before any capture. With operator approval the engine image was rebuilt (`docker compose … build config`, engine layers only; C: had 2.6 GB free, nothing pruned) and the stack restarted with `up -d --no-build`. Afterwards the served files matched `a2a296e` and `styles.css` came back `no-cache` with an ETag. Data volumes kept.
+- **Tests (final code):**
+  - `cd engine && npm test`: **76/76**. `node engine/scripts/check-imports.mjs`: clean.
+  - `node --test engine/test/console-ui.test.mjs`: **15/15**.
+  - `node --test "extension/test/*.test.mjs"`: first run **9/14** (the e2e pairing step timed out waiting for "connected" and the four dependent e2e tests failed with it; the 8 adapter tests and one e2e passed). `node --test extension/test/e2e.test.mjs` alone then passed 6/6, and the combined command passed **14/14**. No code changed between runs; cause not identified (likely a cold first browser start right after the console UI suite).
+  - `NO_BUILD=1 node deploy/test/integration.mjs` on the rebuilt image: **13/13** (normal stack stopped first, restarted after).
+  - Go plugin: not re-run (operator decision; no plugin change since its 21/21 run in session 5).
+- **Screenshots (AD-38):** 15 captured with scratchpad CDP scripts (not committed) from the running stack in headed Edge 156, UTC time zone, dark theme; 13 show real reports, 2 show the real extension on a labelled TEST FIXTURE page against `engine/test/fixture-server.ts`. The 7 screenshots from 2026-11-02 were removed. New index `docs/assets/screenshots/README.md`. PNG chunks checked (no text or time metadata).
+  - Visible in the real data: the operator's chatgpt.com question exactly as typed, and a truncated unpacked-extension id on the Extension page. No keys, tokens or local paths.
+  - Noticed while reviewing, not fixed (no feature work in this session): the claim timeline's "changed 2026-07-20" label is clipped at the panel's right edge.
+- **Docs updated:** `README.md` (decay rates, configuration, console, freshness model, extension install, test table, implementation status, limitations, clone URL), `docs/ARCHITECTURE.md` (Console and extension sections, boundaries, AD range), `docs/DEVELOPMENT.md` (76 tests, revalidation instead of `max-age=300`, fixture review), `docs/INSTALLATION.md` (guard wording, troubleshooting), `deploy/.env.example` (guard comment), `CHANGELOG.md`, `research/SUBMISSION.md` (counts, guard wording, AD range), `research/DEMO_SCRIPT.md` (sidebar navigation, System limits, optional extension step), these four records, and AD-38.
+- **Audit (staged tree, 155 files):** the 9 `deploy/.env` and shell key values compared against every file, binaries included: 0 matches. Key-pattern scan: only the 6 known `sk-bf-feasibility…-only` placeholder virtual keys from the feasibility sprint. Personal-name, local-path, email and time-zone scan: 0 hits. 91 relative links and image references: 0 broken. `.gitignore` covers `deploy/.env`, `engine/data/`, `deploy/test/results/`, `deploy/demo/{backup,results}/`, `.build/`, `experiments/vendor/` and the FreshQA-derived files. The staged change is exactly the 34 intended files (docs, records, `.env.example` comment, screenshots).
+- **Spend:** 0 Tavily credits and $0 DeepSeek (console reads only; fixture engines for tests and the extension shots). The engine's own scheduled `/usage` reads are free.
+- **Git:** one documentation commit on top of `a2a296e`, UTC timestamps, not pushed. Nothing deployed or submitted.
+
+---
+
 ## 2026-11-03, session 14 (Traffic flyout responsive layout; console revalidation, AD-37)
 
 - **Operator report:** the Traffic panel was too cramped at about 373 px and appeared underneath the Traffic navigation row. The screenshot was referenced but not available in the agent's context.

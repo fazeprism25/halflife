@@ -20,7 +20,7 @@ There are **no npm dependencies** anywhere: no `npm install` step. Keep it that 
 
 | Suite | Command | Needs | Spend |
 |---|---|---|---|
-| Engine (75 tests) | `cd engine && npm test` | Node 24 | none |
+| Engine (76 tests) | `cd engine && npm test` | Node 24 | none |
 | Extension (8 adapter + 6 end-to-end) | `node --test "extension/test/*.test.mjs"` | Node 24, Edge or Chrome, openssl | none (test fixtures) |
 | Console UI (15 checks: collapsible sidebar, Traffic flyout beside it and as a phone sheet, keyboard, live updates, desktop/tablet/phone layouts, themes, System provider usage states) | `node --test engine/test/console-ui.test.mjs` | Node 24, Edge or Chrome | none (test fixtures) |
 | Engine import check | `node engine/scripts/check-imports.mjs` | Node 24 | none |
@@ -74,13 +74,21 @@ docker compose -f deploy/docker-compose.yml up -d --no-build
 docker compose -f deploy/docker-compose.yml up -d --build
 ```
 
-The `config` and `engine` services share the `halflife-engine:local` image, so building `config` rebuilds the engine. For console-only changes you can copy files into the running container (it serves `max-age=300`, so hard-refresh):
+The `config` and `engine` services share the `halflife-engine:local` image, so building `config` rebuilds the engine. For console-only changes you can copy files into the running container:
 
 ```powershell
 docker cp engine/console/. halflife-engine-1:/app/engine/console/
 ```
 
-Rebuild the image before you finish, so the image matches the source.
+Console files are served `cache-control: no-cache` with a weak ETag (AD-37), so a normal reload picks up copied files and unchanged files cost a 304; HTML, CSS and JS can no longer mix versions after an update. (Engines built before `a2a296e` served CSS/JS with `max-age=300` and no validator; a browser that cached files from such an engine may need one hard reload.) Changes to `engine/src/` need an image rebuild. Rebuild the image before you finish, so the image matches the source.
+
+### Visual review without spending anything
+
+```bash
+node engine/test/fixture-server.ts --seed --port 8099   # TEST FIXTURE engine: scripted model and search, seeded extension checks
+```
+
+Open <http://127.0.0.1:8099>. Every answer, claim and source it produces is a labelled fixture. `HALFLIFE_UI_SHOTS=<dir> node --test engine/test/console-ui.test.mjs` and `HALFLIFE_E2E_SHOTS=<dir> node --test extension/test/e2e.test.mjs` also write screenshots for review (use a directory path without spaces).
 
 ## Debugging
 

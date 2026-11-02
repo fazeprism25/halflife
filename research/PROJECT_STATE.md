@@ -1,6 +1,15 @@
 # Halflife: Project State
 
-_Last updated: 2026-11-03 (session 14: Traffic flyout responsive layout and console caching, AD-37; session 13: Traffic opens as a flyout to the right of the sidebar, AD-36; session 12: collapsible sidebar, provider account usage). The persistent source of truth: a fresh session reads this file, then `NEXT_SESSION.md`._
+_Last updated: 2026-11-03 (session 15: final documentation, screenshots and verification, AD-38; session 14: Traffic flyout responsive layout and console caching, AD-37; session 13: Traffic opens as a flyout to the right of the sidebar, AD-36; session 12: collapsible sidebar, provider account usage). The persistent source of truth: a fresh session reads this file, then `NEXT_SESSION.md`._
+
+## Session 15: final documentation, screenshots and verification (AD-38)
+
+- **Scope:** finalisation only; no feature or product code changed.
+- **Running stack:** found serving `4398a83`'s console and the old cache headers; with operator approval the engine image was rebuilt from `a2a296e` and the stack restarted (volumes kept). It now serves `a2a296e` (hash-checked; console files `no-cache` with an ETag).
+- **Tests on the final code:** engine **76/76**, console UI **15/15**, extension **14/14** (the first of three runs failed 9/14 on a pairing timeout, then 6/6 alone and 14/14 combined; cause not identified), integration **13/13** on the rebuilt image. Go plugin **21/21** from session 5, not re-run (operator decision; unchanged).
+- **Screenshots (AD-38):** 15 new screenshots from the running stack in headed Edge with a UTC time zone; 13 real, 2 labelled TEST FIXTURE (extension in a page). The 7 pre-sidebar screenshots were removed. Index with provenance: `docs/assets/screenshots/README.md`.
+- **Docs:** README (rewritten sections: decay rates, configuration, console, freshness model, extension install, tests, implementation status, limitations), ARCHITECTURE, DEVELOPMENT, INSTALLATION, `.env.example`, CHANGELOG, SUBMISSION, DEMO_SCRIPT and these records.
+- **Git:** one documentation commit on top of `a2a296e`, UTC timestamps. `main` is 3 commits ahead of `origin/main` (`4398a83`, `a2a296e`, this one). **Not pushed, not deployed, not submitted.**
 
 ## Session 14: Traffic flyout responsive layout and console caching (AD-37)
 
@@ -135,12 +144,12 @@ Halflife is a freshness intelligence layer for LLM applications. Its premise: ev
 | Hosted LLM: **DeepSeek via Bifrost's native provider** | **Live-verified** (AD-17). Judge `deepseek/deepseek-flash`, thinking off | `live-deepseek.json` 6/6; about 3.5k tokens per checked claim |
 | **Tavily account guard** | **Done** (AD-19, AD-34): engine `CreditGuard` plus script `spend-guard.mjs`; 80% of the allowance Tavily's `/usage` reports (800 of the 1,000 it reports for this account on 2026-11-03), read live and never hardcoded; lifetime and daily caps independent | 21 unit tests; ledger `deploy/test/results/spend-ledger.jsonl` |
 | ChatGPT extension (AD-32) | **Done; works on real chatgpt.com** (operator-tested, session 11) | 11 engine + 8 adapter + 6 e2e tests (session 10, re-run session 11) |
-| Inspector Traffic drawer (AD-33) | **Done** (session 11) | 12 console UI checks in headless Edge; screenshots at 1440/820/390 px, light and dark |
-| Tests | **65 engine, 21 plugin (`-race`), 13 integration, 14 extension, 12 console UI: all pass** (engine, extension and console UI re-run in session 11; integration in session 10; plugin in session 5, unchanged since) | `deploy/test/results/integration.json`, `plugin-test-2026-11-02.log` |
+| Console layout: collapsible sidebar, Traffic panel beside it, phone sheet (AD-35–AD-37; the AD-33 drawer is superseded) | **Done** (sessions 12–14) | 15 console UI checks in headless Edge; real-browser screenshots in `docs/assets/screenshots/` (session 15) |
+| Tests | **76 engine, 15 console UI, 14 extension, 13 integration: all pass on the final code (session 15). 21 plugin (`-race`): pass, session 5, unchanged since** | `deploy/test/results/integration.json`, `plugin-test-2026-11-02.log` (both local) |
 | **Real LLM + Tavily run** | **DONE** (session 4): live scripts, gateway end to end with 5 prompt types, cache policy live | `deploy/test/results/live-*.json` |
 | Tavily MCP (dev tooling) | **Decided: not connected** (AD-18) | duplicates WebSearch/WebFetch/curl plus the scripted API probes |
 | Evaluation harness | **v1/v2 + FreshQA done** (AD-28): detection 100 items (assess-only), verification 59 items with hand adjudication. Calibration not done | `eval/results/latest-freshqa.md` |
-| Demo | **Script + runner + backup transcript and stills done.** Video NOT recorded | `research/DEMO_SCRIPT.md`, `deploy/demo/` |
+| Demo | **Script + runner + backup transcript done; current screenshots in the repository (session 15).** Video NOT recorded | `research/DEMO_SCRIPT.md`, `deploy/demo/`, `docs/assets/screenshots/` |
 | Submission write-up | **Draft done**, not submitted | `research/SUBMISSION.md` |
 
 ## Measured results (live, 2026-11-02)
@@ -189,14 +198,14 @@ Halflife is a freshness intelligence layer for LLM applications. Its premise: ev
 - **Bifrost UI** is a stub page (the UI build is skipped).
 - **Single-node engine with SQLite;** not load-tested.
 - **Compose takes provider keys from the shell environment before `deploy/.env`.** This machine has `DEEPSEEK_API_KEY` exported.
-- **Disk:** 4.5 GB free on C:. Rebuild only the engine image.
+- **Disk:** about 2.4 GB free on C: after the session 15 engine rebuild. Rebuild only the engine image; never prune without the operator.
+- **Tavily add-on credits** (dashboard only) are not visible to `/usage`, so the guard is computed from the API-reported allowance and stops earlier than the dashboard total (AD-34).
+- **Console/extension UI tests** run in Edge/Chrome only; the extension e2e suite had one unexplained failing run (session 15).
+- **Claim timeline label** "changed YYYY-MM-DD" is clipped at the claim panel's right edge (seen in session 15 screenshots; not fixed).
 
 ## Current priorities (in order)
 
-0. **Done in session 11:** the real-chatgpt.com test (operator) and the push. Remaining, optional:
-   - add the extension to the demo script
-   - refresh the running stack's console, so the drawer is live at :8090
-   - re-take the sanitised screenshots: they predate the drawer
+0. **Done in session 15:** the extension step in the demo script, the running stack refreshed to `a2a296e`, new screenshots, documentation pass. **Next: the operator reviews the three local commits and decides on the push** (secret scan on `git ls-files` first).
 
 1. **Record the demo video** (needs a human with a screen recorder; follow `research/DEMO_SCRIPT.md`).
 2. **Confirm the official Problem 04 and 06 wording and rubric,** then finalise `research/SUBMISSION.md`. Submit by 2026-11-15, but only when the operator authorises it.

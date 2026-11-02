@@ -1,0 +1,30 @@
+{
+  "about": "Hand adjudications for FreshQA B/C outcomes the snapshot labels cannot decide, made 2026-11-02 by the Claude Code session that ran the evaluation. Each 'changed_after_snapshot' / 'changed_back' / 'not_changed' was checked with a web search independent of Tavily (the search that produced the verdict), except where 'basis' says otherwise. outcome: changed_after_snapshot (C answer really changed after 2026-04-21: the stale verdict is right), not_changed (false positive), unclear (never counted correct), changed_back (B: the 2024 answer is true again, so the item is not stale and is excluded from B scoring). value: later_change_confirmed | wrong (for a replacement value that differs from FreshQA's 2026-04-21 answer).",
+  "run": "eval/results/freshqa-BC-2026-11-02T15-52-40-721Z.json",
+  "items": {
+    "C-434": { "outcome": "not_changed", "note": "Judge error: Hexed releases 2026-11-25, after today (2026-11-02); the judge wrote that the date is 'before today's date'. Zootopia 2 is still the most recent WDAS film.", "sources": ["https://www.cartoonbrew.com/feature-film/disney-animation-unveils-new-original-film-hexed-coming-november-2026-253541.html", "https://www.boxofficemojo.com/title/tt38077943"] },
+    "B-434": { "value": "wrong", "note": "Reported 'Hexed', which is not released yet; correct is Zootopia 2 (the FreshQA answer)." },
+    "C-445": { "outcome": "changed_after_snapshot", "note": "Knicks beat the Spurs 4-1, Game 5 on 2026-06-13.", "sources": ["https://www.nba.com/watch/list/collection/2026-nba-finals-news", "https://kjzz.com/sports/gallery/new-york-knicks-secure-nba-championship-with-game-5-win-over-san-antonio-spurs"] },
+    "B-445": { "value": "later_change_confirmed", "note": "New York Knicks, 2026 champions." },
+    "C-493": { "outcome": "changed_after_snapshot", "note": "Carolina Hurricanes won the 2026 Stanley Cup (Game 6 vs Vegas, 2026-06-14).", "sources": ["https://en.wikipedia.org/wiki/2026_Stanley_Cup_Final", "https://www.nhl.com/news/carolina-hurricanes-win-2026-stanley-cup-final"] },
+    "C-479": { "outcome": "changed_after_snapshot", "note": "Joheirry Mola (Dominican Republic) crowned Miss World 2026 on 2026-09-05.", "sources": ["https://en.wikipedia.org/wiki/Miss_World_2026", "https://www.khaleejtimes.com/miss-world-2026-dominican-republic-joheirry-mola-wins"] },
+    "B-479": { "value": "later_change_confirmed", "note": "Dominican Republic." },
+    "C-179": { "outcome": "changed_after_snapshot", "note": "Starmer announced his resignation 2026-06-22; Andy Burnham became PM in July 2026, so Starmer is now the most recent former PM.", "sources": ["https://www.michiganpublic.org/2026-06-22/keir-starmer-has-resigned-paving-way-for-a-7th-u-k-prime-minister-in-10-years", "https://kstp.com/ap-top-news/ap-top-news-international/starmer-says-hell-resign-as-uk-prime-minister-with-burnham-confirming-he-will-try-to-succeed-him/"] },
+    "B-179": { "value": "later_change_confirmed", "note": "Keir Starmer." },
+    "C-418": { "outcome": "changed_after_snapshot", "basis": "calendar: Patch Tuesday is the second Tuesday of each month; the most recent before 2026-11-02 is 2026-10-13.", "note": "Monthly event; the April answer is necessarily outdated." },
+    "B-418": { "value": "later_change_confirmed", "note": "'October 2026' (the 2026-10-13 release) is the most recent as of 2026-11-02." },
+    "C-440": { "outcome": "changed_after_snapshot", "basis": "IJCAI-ECAI 2026 in Bremen was announced years in advance; the cited idw-online.de release reports its closing ceremony (2026-08). Not separately web-searched.", "note": "IJCAI-ECAI 2026, Bremen." },
+    "B-440": { "value": "later_change_confirmed", "note": "Bremen." },
+    "C-426": { "outcome": "changed_after_snapshot", "note": "The 'latest season' is now 2026-27; Manchester City led on 2026-10-11 (nau.ch table) and per NBC Sports on 2026-10-31. The question is ambiguous between final and current table.", "sources": ["https://www.nbcsports.com/soccer/news/premier-league-table-for-2026-27-season", "https://www.nau.ch/sport/premier-league/rankings"] },
+    "C-376": { "outcome": "changed_after_snapshot", "basis": "Quotes from uefa.com (2026-10-20) and mancity.com (2026-10-14), both official, verified in code against the fetched text. Not separately web-searched.", "note": "61 UCL goals in 60 appearances." },
+    "B-376": { "value": "later_change_confirmed", "note": "61 (same basis as C-376)." },
+    "C-578": { "outcome": "unclear", "note": "8.2 vs 8.3 billion is a rounding boundary in 2026 (Worldometer 8.305 B in July 2026; macrotrends 8.264 B)." },
+    "C-460": { "outcome": "unclear", "note": "Sources disagree (93 on Wikipedia, 95 on landofbasketball.com); weak evidence." },
+    "C-473": { "outcome": "unclear", "note": "Ground-truth ambiguity: Wikipedia's 67 novels/novellas minus 7 Bachman = 60, FreshQA says 61." },
+    "B-473": { "value": "wrong", "note": "'67 novels/novellas, including seven under … Bachman' is not a count under his real name." },
+    "C-381": { "outcome": "unclear", "note": "Amazon best-seller rank changes hourly; quotes show other titles but no #1 rank." },
+    "B-482": { "outcome": "changed_back", "note": "Linda Nosková (Czech Republic) won Wimbledon 2026 on 2026-07-11, so 'Czech Republic' is current again; the 'current' verdict is right.", "sources": ["https://www.wtatennis.com/news/4533700/at-21-linda-noskova-caps-brilliant-fortnight-to-become-youngest-wimbledon-champion-in-15-years-defeats-karolina-muchova", "https://www.aljazeera.com/amp/sports/2026/7/11/noskova-defeats-muchova-in-wimbledon-final-to-record-first-grand-slam-title"] },
+    "B-590": { "value": "later_change_confirmed", "note": "Widow's Bay won Outstanding Comedy Series at the 78th Emmys, 2026-09-14.", "sources": ["https://www.tvinsider.com/1286050/emmys-2026-winners-full-list/"] },
+    "B-229": { "note": "Judge error (false negative): evidence says 2 successful launches; the judge read 'one flight has been launched' as 'at least one'." }
+  }
+}

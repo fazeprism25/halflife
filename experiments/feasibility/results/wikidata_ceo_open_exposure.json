@@ -1,0 +1,19 @@
+{
+  "head" : {
+    "vars" : [ "n", "sumDays" ]
+  },
+  "results" : {
+    "bindings" : [ {
+      "n" : {
+        "datatype" : "http://www.w3.org/2001/XMLSchema#integer",
+        "type" : "literal",
+        "value" : "4240"
+      },
+      "sumDays" : {
+        "datatype" : "http://www.w3.org/2001/XMLSchema#double",
+        "type" : "literal",
+        "value" : "1.6351889506480094E7"
+      }
+    } ]
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "inspection": {
+    "status": 200,
+    "latency_ms": 283,
+    "report_header": "hl-1793573131411888693-1",
+    "plugin_headers": {
+      "post": "seen",
+      "pre": "seen"
+    },
+    "model_text": "[MOCK UPSTREAM] As of July 2024, the answer to \"Who is the CEO of Twitter? (7viirq) Answer in one short sent\" is a placeholder.",
+    "plugin_captured_text": "[MOCK UPSTREAM] As of July 2024, the answer to \"Who is the CEO of Twitter? (7viirq) Answer in one short sent\" is a placeholder.",
+    "captured_equals_delivered": true,
+    "status_when_response_arrived": "queued",
+    "status_after_2_5s": "done",
+    "queued_to_done_ms": 1502,
+    "post_hook_ns": 37101,
+    "hooks_seen": [
+      "PreLLMHook",
+      "PostLLMHook",
+      "HTTPTransportPostHook",
+      "HTTPTransportResponseHeadersHook"
+    ]
+  },
+  "modification": {
+    "status": 200,
+    "content": "[MOCK UPSTREAM] As of July 2024, the answer to \"What is the capital of France? (uge5ti) Answer in one short \" is a placeholder.\n\n[halflife-probe: response modified in PostLLMHook]",
+    "marker_present": true
+  }
+}

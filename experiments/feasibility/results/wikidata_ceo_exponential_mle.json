@@ -1,0 +1,10 @@
+{
+  "closed_tenures": 2794,
+  "open_tenures": 4240,
+  "exposure_years": 68411,
+  "lambda_per_year": 0.0408,
+  "mean_lifetime_years": 24.49,
+  "half_life_years": 16.97,
+  "naive_closed_only_mean_years": 8.46,
+  "P_outdated_after_2_years": 0.078
+}

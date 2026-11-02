@@ -1,0 +1,163 @@
+{
+  "$schema": "https://www.getbifrost.ai/schema",
+  "client": {
+    "enable_logging": true,
+    "drop_excess_requests": false
+  },
+  "config_store": {
+    "enabled": true,
+    "type": "sqlite",
+    "config": {
+      "path": "/data/config.db"
+    }
+  },
+  "logs_store": {
+    "enabled": true,
+    "type": "sqlite",
+    "config": {
+      "path": "/data/logs.db"
+    }
+  },
+  "vector_store": {
+    "enabled": true,
+    "type": "chromem",
+    "config": {}
+  },
+  "providers": {
+    "ollama": {
+      "keys": [
+        {
+          "name": "local-ollama",
+          "weight": 1,
+          "models": [
+            "qwen3:8b"
+          ],
+          "ollama_key_config": {
+            "url": "http://host.docker.internal:11434"
+          }
+        }
+      ],
+      "network_config": {
+        "default_request_timeout_in_seconds": 300,
+        "max_retries": 0,
+        "allow_private_network": true
+      }
+    },
+    "openai": {
+      "keys": [
+        {
+          "name": "mock-upstream",
+          "value": "mock-key-not-secret",
+          "weight": 1,
+          "models": [
+            "mock-model"
+          ]
+        }
+      ],
+      "network_config": {
+        "base_url": "http://host.docker.internal:18000",
+        "allow_private_network": true,
+        "default_request_timeout_in_seconds": 60,
+        "max_retries": 0
+      }
+    }
+  },
+  "plugins": [
+    {
+      "enabled": true,
+      "name": "semantic_cache",
+      "config": {
+        "dimension": 1,
+        "ttl": "5m",
+        "default_cache_key": "halflife-feasibility",
+        "vector_store_namespace": "HalflifeFeasibility"
+      }
+    },
+    {
+      "enabled": true,
+      "name": "halflife-probe-post",
+      "path": "/opt/bifrost/probe-post.so",
+      "placement": "post_builtin",
+      "config": {
+        "sidecar_addr": ":9091",
+        "verify_delay_ms": 1500,
+        "bifrost_admin_url": "http://127.0.0.1:8080",
+        "apply_ttl": true
+      }
+    },
+    {
+      "enabled": true,
+      "name": "halflife-probe-pre",
+      "path": "/opt/bifrost/probe-pre.so",
+      "placement": "pre_builtin",
+      "config": {
+        "sidecar_addr": ":9092",
+        "verify_delay_ms": 1500
+      }
+    }
+  ],
+  "relays": [
+    {
+      "name": "halflife",
+      "description": "Halflife verification API (feasibility sidecar)",
+      "base_url": "http://127.0.0.1:9091",
+      "auth": {
+        "type": "none"
+      },
+      "usage": {
+        "cost_per_request": 0.001,
+        "units_path": "usage.credits",
+        "cost_per_unit": 0.008
+      },
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/health"
+        },
+        {
+          "method": "GET",
+          "path": "/reports"
+        },
+        {
+          "method": "POST",
+          "path": "/mock-search"
+        }
+      ]
+    }
+  ],
+  "setup_token": "feasibility-local-only-token",
+  "governance": {
+    "virtual_keys": [
+      {
+        "id": "vk-halflife-feasibility",
+        "name": "halflife-feasibility",
+        "value": "sk-bf-feasibility-local-only",
+        "relay_grants": [
+          {
+            "relay_name": "halflife"
+          }
+        ],
+        "provider_configs": [
+          {
+            "provider": "openai",
+            "allowed_models": [
+              "*"
+            ],
+            "key_ids": [
+              "*"
+            ],
+            "weight": 1
+          }
+        ]
+      }
+    ],
+    "budgets": [
+      {
+        "id": "budget-halflife-feasibility",
+        "max_limit": 0.05,
+        "reset_duration": "1d",
+        "virtual_key_id": "vk-halflife-feasibility"
+      }
+    ]
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "cached_request_ms": {
+    "p50": 3,
+    "p95": 13
+  },
+  "post_hook_us_on_hits": "post_builtin probe does not run on cache hits"
+}

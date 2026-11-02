@@ -1,0 +1,14 @@
+Halflife
+Copyright 2026 The Halflife authors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This repository does not include or redistribute third-party source code. At build time,
+deploy/gateway.Dockerfile downloads and compiles the Bifrost AI gateway
+(https://github.com/maximhq/bifrost, Apache License 2.0, Copyright 2025 H3 Labs Inc.) and its
+Go dependencies; container images built from this repository therefore contain Bifrost and
+those dependencies under their own licences. See THIRD_PARTY_NOTICES.md.
+
+The evaluation uses the FreshQA dataset (Vu et al., 2023, "FreshLLMs: Refreshing Large
+Language Models with Search Engine Augmentation", arXiv:2310.03214,
+https://github.com/freshllms/freshqa). FreshQA data is not redistributed in this repository.

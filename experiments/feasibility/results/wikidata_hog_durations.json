@@ -1,0 +1,19 @@
+{
+  "head" : {
+    "vars" : [ "n", "meanDays" ]
+  },
+  "results" : {
+    "bindings" : [ {
+      "n" : {
+        "datatype" : "http://www.w3.org/2001/XMLSchema#integer",
+        "type" : "literal",
+        "value" : "19032"
+      },
+      "meanDays" : {
+        "datatype" : "http://www.w3.org/2001/XMLSchema#double",
+        "type" : "literal",
+        "value" : "3009.244588062211"
+      }
+    } ]
+  }
+}

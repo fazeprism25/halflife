@@ -1,0 +1,48 @@
+{
+  "without_vk_status": 401,
+  "health": {
+    "status": 200,
+    "body": "{\"ok\":\"true\",\"plugin\":\"halflife-probe-post\"}\n"
+  },
+  "unlisted_route_status": 404,
+  "mock_search_calls_budget_0_05usd_cost_0_017_each": [
+    {
+      "i": 0,
+      "status": 200,
+      "body": "{\"auth_header_seen\":false,\"mock\":true,\"results\":[],\"usage\":{\"credits\":2}}\n"
+    },
+    {
+      "i": 1,
+      "status": 200,
+      "body": "{\"auth_header_seen\":false,\"mock\":true,\"results\":[],\"usage\":{\"credits\":2}}\n"
+    },
+    {
+      "i": 2,
+      "status": 200,
+      "body": "{\"auth_header_seen\":false,\"mock\":true,\"results\":[],\"usage\":{\"credits\":2}}\n"
+    },
+    {
+      "i": 3,
+      "status": 402,
+      "body": "{\"type\":\"budget_exceeded\",\"is_bifrost_error\":false,\"status_code\":402,\"error\":{\"message\":\"Budget exceeded: vk_model_config * budget exceeded: 0.0510 \\u003e= 0.05"
+    },
+    {
+      "i": 4,
+      "status": 402,
+      "body": "{\"type\":\"budget_exceeded\",\"is_bifrost_error\":false,\"status_code\":402,\"error\":{\"message\":\"Budget exceeded: vk_model_config * budget exceeded: 0.0510 \\u003e= 0.05"
+    },
+    {
+      "i": 5,
+      "status": 402,
+      "body": "{\"type\":\"budget_exceeded\",\"is_bifrost_error\":false,\"status_code\":402,\"error\":{\"message\":\"Budget exceeded: vk_model_config * budget exceeded: 0.0510 \\u003e= 0.05"
+    }
+  ],
+  "relay_logs": {
+    "status": 200,
+    "body": "{\"logs\":[],\"pagination\":{\"limit\":50,\"offset\":0,\"sort_by\":\"\",\"order\":\"\",\"total_count\":0},\"has_logs\":false}\n"
+  },
+  "virtual_keys": {
+    "status": 200,
+    "body": "{\"count\":1,\"limit\":1,\"offset\":0,\"total_count\":1,\"virtual_keys\":[{\"id\":\"vk-halflife-feasibility\",\"name\":\"halflife-feasibility\",\"is_active\":true,\"provider_configs\":[{\"id\":1,\"virtual_key_id\":\"vk-halflife-feasibility\",\"provider\":\"openai\",\"weight\":1,\"allow_all_keys\":true,\"keys\":[],\"allowed_models\":[\"*\"],\"blacklisted_models\":[]}],\"mcp_configs\":[],\"agent_grants\":[],\"relay_grants\":[{\"virtual_key_id\":\"vk-halflife-feasibility\",\"relay_name\":\"halflife\",\"created_at\":\"2026-11-01T22:56:43.307955911Z\"}],\"calendar_aligned\":false,\"allow_all_providers\":false,\"budgets\":[{\"id\":\"budget-halflife-feasibility\",\"max_limit\":0.05,\"reset_duration\":\"1d\",\"last_reset\":\"2026-11-01T22:56:43.30871979Z\",\"current_usage\":0,\"model_config_id\":\"79a540a3-e81f-4677-bea9-820e078ab22f\",\"config_hash\":\"6706ef1c0dd7d94663bc34eb2827c9b00e3a802a3dec68bcd8bafba95208f120\",\"created_at\":\"2026-11-01T22:56:43.30871979Z\",\"updated_at\":\"2026-11-01T22:56:43.30871979Z\"}],\"assigned_user\":null,\"config_hash\":\"2aa5de91a8c662e42d6d123797db0367d2f394f68ba1fb71c70a2b677169ad80\",\"created_at\":\"2026-11-01T22:56:43.24304435Z\",\"updated_at\":\"2026-11-01T22:56:43.24304435Z\",\"value\":\"sk-bf-feasibility-local-only\"}]}\n"
+  }
+}

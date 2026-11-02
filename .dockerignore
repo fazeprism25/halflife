@@ -1,0 +1,8 @@
+*
+!plugin/**
+!shared/**
+!engine/**
+!deploy/render-config.mjs
+!deploy/test/**
+engine/data/**
+engine/node_modules/**

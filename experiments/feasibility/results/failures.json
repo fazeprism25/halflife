@@ -1,0 +1,48 @@
+{
+  "panic_in_post_hook": {
+    "status": 500,
+    "content": null,
+    "gateway_alive_after": true,
+    "container_running": "true"
+  },
+  "endpoints": {
+    "shortcircuit_status": 200,
+    "shortcircuit_body": "{\"served_by\":\"halflife-probe-pre\",\"path\":\"/v1/chat/completions\",\"note\":\"plugin-owned response via HTTPTransportPreHook short-circuit\"}",
+    "custom_route_status": 200,
+    "custom_route_body": "<html><body>ui stub (feasibility build)</body></html>\n",
+    "sidecar_health": {
+      "ok": "true",
+      "plugin": "halflife-probe-post"
+    }
+  },
+  "verifier_unreachable": {
+    "inference_status": 200,
+    "ms": 269,
+    "report": {
+      "status": "failed",
+      "error": "verifier unreachable: Get \"http://10.255.255.1:9/verify\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)"
+    }
+  },
+  "worker_panic": {
+    "inference_status": 200,
+    "report_status": "failed",
+    "error": "worker panic recovered: deliberate worker panic"
+  },
+  "queue_saturation": {
+    "statuses": [
+      200,
+      200,
+      200,
+      200,
+      200,
+      200
+    ],
+    "dropped": 2
+  },
+  "plugin_init_failure": {
+    "inference_status": 200,
+    "content": "[MOCK UPSTREAM] As of July 2024, the answer to \"Name a tree. (vtr2zj) Answer in one short sentence. /no_thin\" is a placeholder.",
+    "probe_headers_present": false,
+    "plugins_api": "{\"count\":7,\"plugins\":[{\"name\":\"halflife-probe-pre\",\"actualName\":\"halflife-probe-pre\",\"enabled\":true,\"config\":{},\"isCustom\":true,\"path\":null,\"status\":{\"name\":\"halflife-probe-pre\",\"status\":\"error\",\"logs\":[\"error loading plugin halflife-probe-pre: failed to load custom plugin: plugin Init failed: probe configured to fail Init\"],\"types\":[]}},{\"name\":\"telemetry\",\"actualName\":\"telemetry\",\"enabled\":true,\"config\":{},\"isCustom\":true,\"path\":null,\"status\":{\"name\":\"telemetry\",\"status\":\"active\",\"logs\":[\"telemetry plugin initialized successfully\"],\"types\":[\"llm\",\"mcp\",\"http\"]}},{\"name\":\"governance\",\"actualName\":\"governance\",\"enabled\":true,\"config\":{},\"isCustom\":true,\"path\":null,\"status\":{\"name\":\"governance\",\"status\":\"error\",\"logs\":[\"error initializing governance plugin: failed to initialize governance store: failed to load governance data from config memory: governance config is nil\"],\"types\":[]}},{\"name\":\"semantic_cache\",\"actualName\":\"semantic_cache\",\"enabled\":true,\"config\":{},\"isCustom\":true,\"path\":null,\"status\":{\"name\":\"semantic_cache\",\"status\":\"active\",\"logs\":[\"semantic_cache plugin initialized successfully\"],\"types\":[\"llm\",\"http\"]}},{\"name\":\"compat\",\"actualName\":\"compat\",\"enabled\":true,\"con"
+  }
+}

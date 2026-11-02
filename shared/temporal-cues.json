@@ -1,0 +1,169 @@
+{
+  "version": "2026-11-02.2",
+  "description": "Lexical cues for inline triage. Shared by the Go plugin (cache TTL caps, computed in microseconds) and the engine (heuristic extraction fallback). Patterns use the syntax common to Go RE2 and JavaScript and are matched case-insensitively. A response's TTL cap is the smallest ttl_seconds among the groups it matches. ttl_seconds 0 means do not cache. keywords: lowercase literals of which at least one occurs in any text a group pattern matches; they gate the regexes so most text is never regex-scanned.",
+  "groups": [
+    {
+      "id": "market",
+      "label": "Prices and market data",
+      "ttl_seconds": 0,
+      "classes": [
+        "market.price",
+        "market.metric"
+      ],
+      "keywords": [
+        "price",
+        "trading at",
+        "exchange rate",
+        "market cap",
+        "bitcoin",
+        "eth",
+        "btc",
+        "cost",
+        "trade"
+      ],
+      "patterns": [
+        "\\b(stock|share) price\\b",
+        "\\bprice of\\b",
+        "\\btrading at\\b",
+        "\\bexchange rate\\b",
+        "\\bmarket cap(italization)?\\b",
+        "\\b(bitcoin|ethereum|btc|eth)\\b[^.]{0,40}\\$\\s?\\d",
+        "\\b(costs?|priced at|trades? at)\\s+(about|around|roughly|approximately)?\\s*[$€£¥]\\s?\\d"
+      ]
+    },
+    {
+      "id": "software",
+      "label": "Software versions and releases",
+      "ttl_seconds": 3600,
+      "classes": [
+        "software.version"
+      ],
+      "keywords": [
+        "version",
+        "release",
+        "latest",
+        "current",
+        "newest",
+        "shipped"
+      ],
+      "patterns": [
+        "\\b(latest|newest|current|most recent)\\s+(stable\\s+)?(version|release)\\b",
+        "\\bv?\\d+\\.\\d+(\\.\\d+)?\\b[^.]{0,30}\\b(is|was) (the )?(latest|current|newest)\\b",
+        "\\b(released|shipped) (in|on) (january|february|march|april|may|june|july|august|september|october|november|december)\\b"
+      ]
+    },
+    {
+      "id": "leadership",
+      "label": "Office holders and leadership",
+      "ttl_seconds": 21600,
+      "classes": [
+        "org.leadership",
+        "gov.office_holder"
+      ],
+      "keywords": [
+        "ceo",
+        "cfo",
+        "cto",
+        "coo",
+        "chief executive",
+        "chair",
+        "president",
+        "prime minister",
+        "chancellor",
+        "governor",
+        "mayor",
+        "secretary",
+        "head coach",
+        "minister"
+      ],
+      "patterns": [
+        "\\b(ceo|cfo|cto|coo|chief executive|chairman|chairwoman|chairperson|president|prime minister|chancellor|governor|mayor|secretary[- ]general|head coach|minister)\\b"
+      ]
+    },
+    {
+      "id": "statistics",
+      "label": "Statistics and indicators",
+      "ttl_seconds": 21600,
+      "classes": [
+        "stats.indicator",
+        "policy.rate"
+      ],
+      "keywords": [
+        "population",
+        "gdp",
+        "inflation",
+        "unemployment",
+        "interest rate",
+        "policy rate",
+        "federal funds rate",
+        "cpi",
+        "market share",
+        "user base",
+        "monthly active users",
+        "subscribers"
+      ],
+      "patterns": [
+        "\\b(population|gdp|inflation|unemployment|interest rate|policy rate|federal funds rate|cpi)\\b",
+        "\\b(market share|user base|monthly active users|subscribers)\\b"
+      ]
+    },
+    {
+      "id": "recency",
+      "label": "Explicit recency language",
+      "ttl_seconds": 21600,
+      "classes": [],
+      "keywords": [
+        "currently",
+        "as of",
+        "at present",
+        "right now",
+        "these days",
+        "nowadays",
+        "to date",
+        "so far this year",
+        "the current",
+        "the latest",
+        "the newest",
+        "the reigning",
+        "the incumbent",
+        "the defending",
+        "this year",
+        "this month",
+        "this week",
+        "this season"
+      ],
+      "patterns": [
+        "\\b(currently|as of|at present|right now|these days|nowadays|to date|so far this year)\\b",
+        "\\b(the (current|latest|newest|reigning|incumbent|defending))\\b",
+        "\\b(this (year|month|week|season))\\b"
+      ]
+    },
+    {
+      "id": "superlative",
+      "label": "Records and rankings",
+      "ttl_seconds": 86400,
+      "classes": [
+        "record.superlative",
+        "sports.standing"
+      ],
+      "keywords": [
+        "record",
+        "tallest",
+        "largest",
+        "fastest",
+        "richest",
+        "most popular",
+        "best-selling",
+        "highest-grossing",
+        "ranked",
+        "champion",
+        "title holder",
+        "won the"
+      ],
+      "patterns": [
+        "\\b(world record|record holder|tallest|largest|fastest|richest|most popular|best-selling|highest-grossing|ranked (no\\.?|number) ?1)\\b",
+        "\\b(champion|champions|title holder|won the \\d{4})\\b"
+      ]
+    }
+  ]
+}

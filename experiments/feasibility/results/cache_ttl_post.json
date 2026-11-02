@@ -1,0 +1,52 @@
+{
+  "cache_hit_visibility": {
+    "first": {
+      "cache_debug": {
+        "cache_hit": false,
+        "cache_id": "19d9a75f-c008-5b65-8bb0-3ecd4ee2164c"
+      },
+      "ms": 273
+    },
+    "second": {
+      "cache_debug": {
+        "cache_hit": true,
+        "cache_id": "19d9a75f-c008-5b65-8bb0-3ecd4ee2164c",
+        "hit_type": "direct",
+        "requested_provider": "openai",
+        "requested_model": "mock-model",
+        "cache_hit_latency": 0
+      },
+      "ms": 14
+    },
+    "post_builtin_probe_hooks_on_hit": [
+      "HTTPTransportPostHook",
+      "HTTPTransportResponseHeadersHook"
+    ],
+    "pre_builtin_probe_hooks_on_hit": [
+      "PreLLMHook",
+      "PostLLMHook",
+      "HTTPTransportPostHook",
+      "HTTPTransportResponseHeadersHook"
+    ],
+    "pre_builtin_probe_saw_cache_hit_in_PostLLMHook": "cache_debug visible: hit=true"
+  },
+  "plugin_ttl_post_builtin": {
+    "ttl_set_by_plugin": "4s",
+    "t_plus_0_8s_hit": true,
+    "t_plus_5_8s_hit": false,
+    "control_default_ttl_t_plus_5_8s_hit": true,
+    "control_first": {
+      "cache_hit": false,
+      "cache_id": "342abedd-1bce-549b-9606-cce9e78a0360"
+    }
+  },
+  "adaptive_ttl": {
+    "text": "[MOCK UPSTREAM] As of July 2024, the answer to \"Who is the current CEO of Microsoft? (65o31y) Answer in one \" is a placeholder.",
+    "ttl_set": "5s"
+  },
+  "async_invalidation": {
+    "captured_cache_id": "fefdf8f0-eeed-5ef8-9f74-a83452fe7062",
+    "invalidate_result": "DELETE /api/cache/clear/fefdf8f0-eeed-5ef8-9f74-a83452fe7062 -> 200 {\"message\":\"Cache cleared successfully\"}",
+    "next_request_hit": false
+  }
+}

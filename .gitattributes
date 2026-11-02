@@ -1,0 +1,5 @@
+# Normalise text files to LF in the repository. Files are copied into Linux containers,
+# so shell entrypoints and configs must not pick up CRLF on Windows checkouts.
+* text=auto eol=lf
+*.png binary
+*.svg text

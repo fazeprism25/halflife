@@ -1,0 +1,4 @@
+*
+!feasibility/probe/**
+!vendor/bifrost-v2.4.0/transports/**
+vendor/bifrost-v2.4.0/transports/bifrost-http/ui/**

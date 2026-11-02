@@ -1,0 +1,99 @@
+# Halflife: Bifrost gateway (with the Halflife plugin) + Halflife engine.
+#
+#   node deploy/setup.mjs                         # once: generates local secrets in deploy/.env
+#   docker compose -f deploy/docker-compose.yml up --build
+#
+#   Gateway (OpenAI-compatible):  http://localhost:8080/v1/chat/completions
+#   Halflife console:             http://localhost:8090
+#   Halflife API via Bifrost:     http://localhost:8080/relay/halflife/v1/...   (header x-bf-vk)
+#
+# Ports bind to 127.0.0.1 only. Secrets come from deploy/.env and are referenced, never copied,
+# by the rendered Bifrost config (env.NAME references).
+
+name: halflife
+
+x-secrets: &secrets
+  HALFLIFE_INGEST_TOKEN: ${HALFLIFE_INGEST_TOKEN:?run node deploy/setup.mjs first}
+  HALFLIFE_INTERNAL_TOKEN: ${HALFLIFE_INTERNAL_TOKEN:?run node deploy/setup.mjs first}
+  HALFLIFE_RELAY_TOKEN: ${HALFLIFE_RELAY_TOKEN:?run node deploy/setup.mjs first}
+  BIFROST_ADMIN_TOKEN: ${BIFROST_ADMIN_TOKEN:?run node deploy/setup.mjs first}
+  HALFLIFE_ENGINE_VK: ${HALFLIFE_ENGINE_VK:?run node deploy/setup.mjs first}
+  HALFLIFE_DEMO_VK: ${HALFLIFE_DEMO_VK:?run node deploy/setup.mjs first}
+
+x-provider-keys: &provider-keys
+  TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+  DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+  GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+  GROQ_API_KEY: ${GROQ_API_KEY:-}
+  OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+  MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+
+x-options: &options
+  HALFLIFE_LLM_MODEL: ${HALFLIFE_LLM_MODEL:-}
+  HALFLIFE_LLM_FALLBACKS: ${HALFLIFE_LLM_FALLBACKS:-}
+  HALFLIFE_LLM_EXTRA_BODY: ${HALFLIFE_LLM_EXTRA_BODY:-}
+  HALFLIFE_PLAYGROUND_MODELS: ${HALFLIFE_PLAYGROUND_MODELS:-}
+  HALFLIFE_CACHE_TTL_SECONDS: ${HALFLIFE_CACHE_TTL_SECONDS:-3600}
+  HALFLIFE_ENGINE_BUDGET_USD: ${HALFLIFE_ENGINE_BUDGET_USD:-2}
+  HALFLIFE_DEMO_BUDGET_USD: ${HALFLIFE_DEMO_BUDGET_USD:-1}
+  HALFLIFE_DEFAULT_MODE: ${HALFLIFE_DEFAULT_MODE:-async}
+  HALFLIFE_OLLAMA_URL: ${HALFLIFE_OLLAMA_URL:-}
+  HALFLIFE_FIXTURE_UPSTREAM: ${HALFLIFE_FIXTURE_UPSTREAM:-}
+  HALFLIFE_DEMO_VK_PROBE: ${HALFLIFE_DEMO_VK_PROBE:-}
+
+services:
+  # One-shot: renders /bifrost/config.json from which credentials are present (names only).
+  config:
+    build: { context: .., dockerfile: deploy/engine.Dockerfile }
+    image: halflife-engine:local
+    command: ["node", "/app/deploy/render-config.mjs", "/bifrost"]
+    environment: { <<: [*provider-keys, *options] }
+    volumes: [bifrost-config:/bifrost]
+    restart: "no"
+
+  gateway:
+    build: { context: .., dockerfile: deploy/gateway.Dockerfile, target: runtime }
+    image: halflife-gateway:local
+    depends_on:
+      config: { condition: service_completed_successfully }
+    # Bifrost reads /data/config.json; the rendered file is copied in on every start so config
+    # changes (e.g. a newly added key) apply. Runtime state (config.db, logs.db) persists.
+    entrypoint: ["/bin/sh", "-c", "cp /bifrost/config.json /data/config.json && rm -f /data/config.db && exec /opt/bifrost/bifrost-http -app-dir /data -host 0.0.0.0 -port 8080"]
+    environment: { <<: [*secrets, *provider-keys], HALFLIFE_DEMO_VK_PROBE: "${HALFLIFE_DEMO_VK_PROBE:-}" }
+    volumes: [bifrost-config:/bifrost:ro, gateway-data:/data]
+    ports: ["127.0.0.1:8080:8080"]
+    restart: unless-stopped
+
+  engine:
+    image: halflife-engine:local
+    depends_on:
+      config: { condition: service_completed_successfully }
+    environment:
+      <<: [*secrets, *options]
+      BIFROST_URL: http://gateway:8080
+      HALFLIFE_RUNTIME_FILE: /bifrost/runtime.json
+      HALFLIFE_CONSOLE_TOKEN: ${HALFLIFE_CONSOLE_TOKEN:-}
+      HALFLIFE_DAILY_CREDIT_CAP: ${HALFLIFE_DAILY_CREDIT_CAP:-150}
+      # Tavily free-allowance guard (AD-19): lifetime engine cap, and the share of the plan
+      # allowance usable (capped at 0.95 in code; the remainder is the demo/test reserve).
+      HALFLIFE_TOTAL_CREDIT_CAP: ${HALFLIFE_TOTAL_CREDIT_CAP:-700}
+      HALFLIFE_TAVILY_CEILING_FRACTION: ${HALFLIFE_TAVILY_CEILING_FRACTION:-0.8}
+      HALFLIFE_TAVILY_ACCOUNT_GUARD: ${HALFLIFE_TAVILY_ACCOUNT_GUARD:-1}
+    volumes: [bifrost-config:/bifrost:ro, engine-data:/data]
+    ports: ["127.0.0.1:8090:8090"]
+    restart: unless-stopped
+
+  # TEST FIXTURES ONLY (profile "test"): scripted OpenAI- and Tavily-compatible upstreams used by
+  # deploy/test/integration.mjs. Every response is labelled [TEST FIXTURE].
+  fixtures:
+    profiles: ["test"]
+    image: halflife-engine:local
+    command: ["node", "/app/deploy/test/fixtures.mjs"]
+    volumes: [../deploy/test:/app/deploy/test:ro]
+
+volumes:
+  bifrost-config:
+  gateway-data:
+  engine-data:

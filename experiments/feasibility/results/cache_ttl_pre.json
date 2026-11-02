@@ -1,0 +1,38 @@
+{
+  "ttl_set_by_pre_builtin_plugin": "4s",
+  "pre_report": {
+    "request_id": "hl-1793573381463768838-1",
+    "status": "done",
+    "stream": false,
+    "text": "[MOCK UPSTREAM] As of July 2024, the answer to \"Name one metal. (m5s5a8) Answer in one short sentence. /no_t\" is a placeholder.",
+    "cache_hit": false,
+    "cache_id": "89510bc6-9fd0-5326-bb3b-0f5bbad28b83",
+    "ttl_set": "4s",
+    "verdict": "stub-verdict (no LLM/Tavily in probe)",
+    "events": [
+      {
+        "at": "2026-11-01T22:49:41.537561107Z",
+        "hook": "PreLLMHook"
+      },
+      {
+        "at": "2026-11-01T22:49:41.744633536Z",
+        "hook": "PostLLMHook",
+        "note": "cache_debug visible: hit=false",
+        "hook_ns": 51589
+      },
+      {
+        "at": "2026-11-01T22:49:41.754094718Z",
+        "hook": "HTTPTransportPostHook"
+      },
+      {
+        "at": "2026-11-01T22:49:41.754156277Z",
+        "hook": "HTTPTransportResponseHeadersHook"
+      }
+    ],
+    "queued_at": "2026-11-01T22:49:41.744646932Z",
+    "done_at": "2026-11-01T22:49:43.24544221Z"
+  },
+  "post_report_ttl": null,
+  "t_plus_5s_hit": true,
+  "interpretation_if_true": "pre_builtin PostLLMHook runs AFTER semantic_cache wrote the entry, so its TTL is ignored"
+}

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Halflife</title>
+  <meta name="description" content="Halflife: claim-level freshness for LLM traffic through Bifrost.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <div class="shell">
+    <nav class="rail" aria-label="Primary">
+      <a class="brand" href="#/inspector" aria-label="Halflife home">
+        <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.6"/>
+          <path d="M12 2a10 10 0 0 1 0 20z" fill="currentColor"/>
+        </svg>
+        <span>
+          <span class="brand-name">Halflife</span><br>
+          <span class="brand-sub">freshness layer for Bifrost</span>
+        </span>
+      </a>
+      <div class="nav" id="nav">
+        <a href="#/inspector" data-route="inspector">Inspector <span class="count" id="nav-count"></span></a>
+        <a href="#/check" data-route="check">Check</a>
+        <a href="#/model" data-route="model">Freshness model</a>
+        <a href="#/system" data-route="system">System</a>
+      </div>
+      <div class="rail-foot">
+        <span class="live" id="live" data-state="connecting"><span class="live-dot"></span><span id="live-label">Connecting</span></span>
+        <button class="theme-toggle" id="theme" type="button">Theme: system</button>
+      </div>
+    </nav>
+    <main id="main" tabindex="-1"></main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "status": 200,
+  "ms": 523,
+  "chunks": 9,
+  "report_header_on_stream": "hl-1793573428143380498-1",
+  "client_text": "[MOCK UPSTREAM] As of July 2024, the answer to \"Who wrote Hamlet? (dy0vcg) Answer in one short sentence. /no\" is a placeholder. [halflife: verification pending, report=hl-1793573428143380498-1] [halflife: verification pending, report=hl-1793573428143380498-1]",
+  "note_appended_to_final_chunk": true,
+  "plugin_assembled_text": "[MOCK UPSTREAM] As of July 2024, the answer to \"Who wrote Hamlet? (dy0vcg) Answer in one short sentence. /no\" is a placeholder.",
+  "plugin_text_matches_client_minus_note": false,
+  "report_status": "done",
+  "hooks": [
+    "PreLLMHook",
+    "HTTPTransportResponseHeadersHook",
+    "PostLLMHook",
+    "HTTPTransportPostHook"
+  ]
+}

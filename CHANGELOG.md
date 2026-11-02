@@ -9,7 +9,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 - Feature-complete hackathon prototype, verified end to end with real DeepSeek and Tavily.
 - Tests: 54 engine tests, 21 Go plugin tests with `-race`, 13 integration checks — all passing.
 - Not production-ready: single node, SQLite, not load-tested, outdated-probability score uncalibrated.
-- Licensed under Apache-2.0. Not published, deployed or submitted.
+- Licensed under Apache-2.0. Published at <https://github.com/fazeprism25/halflife> on 2026-11-02. Not deployed; the hackathon entry is submitted separately.
 
 ### Added (publication preparation)
 

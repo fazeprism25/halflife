@@ -1,11 +1,17 @@
 # Next Session
 
-_Read `PROJECT_STATE.md` first, then this file. Updated in session 8 (2026-11-02): history replaced by a single root commit._
+_Read `PROJECT_STATE.md` first, then this file. Updated in session 9 (2026-11-02): published on GitHub._
+
+## Session 9 summary (publication)
+- **Public repository:** <https://github.com/fazeprism25/halflife> (public, default branch `main`, Apache-2.0 detected, no Actions workflows).
+- Root commit recreated with the GitHub noreply identity (repository-local config) and UTC timestamps: `f42d3bf73602d3e52d46cb01bcec9faec29c8ea1`. Record updates follow as a second commit.
+- **Committing from now on:** keep timestamps in UTC, e.g. `GIT_AUTHOR_DATE="$(date -u +%s) +0000" GIT_COMMITTER_DATE="$(date -u +%s) +0000" git commit …`. A plain `git commit` stamps the local offset.
+- **Still needs the operator:** record the demo video; confirm the official problem wording; submit the entry (the operator does this). Optionally replace "The Halflife authors" in `NOTICE`.
 
 ## Session 8 summary (clean history)
 - **Operator decision:** replace the local history with one clean root commit (AD-31 option (a)).
 - **Done:** old history backed up privately outside the repository (verified bundle plus `.git` copy); tree audited; orphan commit "Initial public release: Halflife freshness verification platform" on `main`, no parent; old branch deleted, reflogs expired, unreachable objects pruned. `git log` shows the hash.
-- **Still needs the operator:** GitHub publication (create the remote and push) only with explicit authorisation; optionally replace "The Halflife authors" in `NOTICE`. Commits carry the global git identity (name and email) in their metadata, which becomes public on push.
+- Then published in session 9 (see above).
 
 ## Session 7 summary (publication preparation)
 - **Operator decisions:** Apache-2.0; FreshQA CSVs excluded; demo transcript private; screenshots only with the time zone removed.
@@ -30,7 +36,7 @@ The product is feature-complete and verified with real services:
 - The demo script, the runner and backup material exist. The transcript and the original stills are private; sanitised stills are in `docs/assets/screenshots/`.
 - A submission draft is written.
 
-Quality gate passed: 54 engine tests, 21 Go tests with `-race`, 13 integration checks, a clean setup from a copied tree, and 0 secrets in files. **Nothing has been submitted, published or deployed.** A local git repository exists (session 6); it has no remote.
+Quality gate passed: 54 engine tests, 21 Go tests with `-race`, 13 integration checks, a clean setup from a copied tree, and 0 secrets in files. **Published on GitHub (<https://github.com/fazeprism25/halflife>); nothing has been submitted or deployed.**
 
 ## Spending (absolute; AD-19)
 - **Tavily: 129 of 1000 credits used** (engine 128 + 1 direct). The ceiling is 800 and the 200-credit reserve is untouched. Pay-as-you-go 0. **Tavily stays at $0.**
@@ -68,7 +74,7 @@ Quality gate passed: 54 engine tests, 21 Go tests with `-race`, 13 integration c
    - re-judge the FreshQA error items with `HALFLIFE_LLM_MODEL=deepseek/deepseek-v4-pro`, using `--only` and `--tag`; at most 10 credits
    - authoritative-source preference for `current_value`
    - observation de-duplication by `norm_key`
-4. **Repository:** licence approved (session 7) and history cleaned (session 8). Next: the operator authorises GitHub publication (create the remote and push only then). Before pushing, re-run the secret scan on `git ls-files`.
+4. **Repository:** published at <https://github.com/fazeprism25/halflife> (session 9). Before every push, re-run the secret scan on `git ls-files` and commit with UTC timestamps.
 5. **Before submission:**
    - Re-run `node eval/freshqa-score.mjs`. Then make sure the numbers in `README.md`, `SUBMISSION.md` and `DEMO_SCRIPT.md` match `eval/results/latest-freshqa.md`.
    - **Submit only with explicit operator authorisation.** Deadline 2026-11-15.

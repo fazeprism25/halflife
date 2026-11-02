@@ -94,7 +94,7 @@ Each entry: decision, why, alternatives considered or rejected. Decisions marked
 - Evidence text is truncated per source.
 
 ## AD-13 No mocks in the product path
-- Test-only fakes live in `engine/test/fakes/` and `deploy/test/`. Every output they produce is labelled `"fake": true` / `[TEST FIXTURE]`.
+- Test-only fakes live in `engine/test/fakes.ts` and `deploy/test/`. Every output they produce is labelled `"fake": true` / `[TEST FIXTURE]`.
 - When a provider is not configured, the product says so ("Tavily not configured, claims not verified"). It never fabricates a verdict.
 - The heuristic extractor is a real, documented, rule-based method, used when no LLM is configured, and is labelled `extraction: heuristic`.
 

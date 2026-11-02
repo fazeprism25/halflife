@@ -4,6 +4,23 @@ Newest first. Every entry records what was done, the files touched, the tests ru
 
 ---
 
+## 2026-11-02, session 9 (published on GitHub)
+
+### Operator authorisation
+Use the GitHub noreply identity, recreate the root commit, create a public repository `halflife`, push, and provide the URL. Not authorised: submission, deployment, uploading private material.
+
+### Done
+- `gh auth status`: logged in as `fazeprism25`; the account id came from `GET /user`. The token lacks the `user` scope, so `/user/emails` was unavailable; the address follows GitHub's documented noreply format (`<id>+<login>@users.noreply.github.com`) from the API-reported id. Set in the repository-local config only.
+- Root commit recreated from the identical tree (`5b144b2`) with UTC timestamps: `f42d3bf73602d3e52d46cb01bcec9faec29c8ea1`, no parent, 119 files. The previous root was pruned; the private backup from session 8 is untouched.
+- Created <https://github.com/fazeprism25/halflife> (public, description set, no homepage, no remote README/licence/.gitignore). Pushed `main` with upstream tracking.
+
+### Checks
+- Before publishing: secret scan 0 values (7 known placeholders); forbidden-path check empty; LICENSE sha256 matches the official text; 7 screenshots; links OK; engine 54/54; personal email, local paths and the zone offset absent from tracked text and commit metadata.
+- After pushing: `git ls-remote` = local HEAD; the API reports visibility public, default branch `main`, licence Apache-2.0, README detected, 1 commit with no parents, 119 blobs; anonymous HTTP 200.
+- Found and fixed: AD-13 cited `engine/test/fakes/`; the file is `engine/test/fakes.ts`.
+
+---
+
 ## 2026-11-02, session 8 (history replaced by a single root commit)
 
 ### Operator decision

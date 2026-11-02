@@ -1,15 +1,19 @@
 # Halflife: Project State
 
-_Last updated: 2026-11-02 (session 8: history replaced by a single root commit). The persistent source of truth: a fresh session reads this file, then `NEXT_SESSION.md`._
+_Last updated: 2026-11-02 (session 9: published on GitHub). The persistent source of truth: a fresh session reads this file, then `NEXT_SESSION.md`._
 
-## Repository (sessions 6–8)
+## Repository (sessions 6–9)
 
-- **Local git repository, branch `main`: a single parentless root commit,** "Initial public release: Halflife freshness verification platform" (session 8). It replaced the two pre-release commits; the old history is backed up privately outside the repository and pruned from it. **No remote, nothing pushed or published.**
+- **Public repository: <https://github.com/fazeprism25/halflife>** (published 2026-11-02, session 9). Branch `main`, tracking `origin/main`.
+  - History: the parentless root commit `f42d3bf` "Initial public release: Halflife freshness verification platform", then record updates. The pre-release commits were replaced (session 8); the old history is backed up privately outside the repository and pruned from it.
+  - Commit identity: repository-local `user.email` is the account's GitHub noreply address (`<id>+<login>@users.noreply.github.com`); global git config unchanged. Commit timestamps are written in UTC (`GIT_AUTHOR_DATE`/`GIT_COMMITTER_DATE` with `+0000`).
+  - **Not deployed; the hackathon entry is not submitted** (the operator submits separately).
 - **Licence: Apache-2.0** (operator-approved). `LICENSE`, `NOTICE` and `THIRD_PARTY_NOTICES.md` are added. The provenance audit found no blocking issue (AD-31).
 - Contents and exclusions: AD-29, amended by AD-31.
   - Withdrawn from version control in session 7 (kept on disk): the original screenshots, and the FreshQA-derived verbatim files (set, raw runs, `latest-freshqa.md`).
   - Sanitised screenshots are in `docs/assets/screenshots/`.
-- **History:** resolved (AD-31). The published history contains only the sanitised tree. The remaining step is GitHub publication, which needs explicit authorisation.
+- **History:** resolved (AD-31). The published history contains only the sanitised tree.
+- **Pre-publication audit (session 9):** 119 files; secret scan 0 values (7 known placeholders); no private paths tracked; LICENSE (official text), NOTICE, THIRD_PARTY_NOTICES and the 7 sanitised screenshots present; links OK; engine 54/54; no personal email, local path or zone in tracked text or commit metadata. GitHub detects Apache-2.0 and renders the README.
 - Documentation: `README.md` (rewritten), `docs/ARCHITECTURE.md`, `docs/INSTALLATION.md`, `docs/DEVELOPMENT.md`, `docs/SECURITY.md`, `docs/EVALUATION.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `research/README.md`, `experiments/README.md`.
 - Pre-commit checks (session 6): engine 54/54, Go plugin 21/21 with `-race` (0 races; hooks 42 µs/op, triage 30 µs/op), FreshQA scorer reproduces `latest-freshqa.md`, secret scan of staged files 0 hits, clean export of the staged tree passes setup + engine tests + link check. Integration suite **not** re-run this session (no code changes since its 13/13 pass in session 5).
 

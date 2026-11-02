@@ -1,8 +1,22 @@
 # Halflife: Project State
 
-_Last updated: 2026-11-03 (session 10: ChatGPT browser extension, committed locally as `566f561`, not pushed). The persistent source of truth: a fresh session reads this file, then `NEXT_SESSION.md`._
+_Last updated: 2026-11-03 (session 11: Inspector Traffic drawer, real-chatgpt.com result, push). The persistent source of truth: a fresh session reads this file, then `NEXT_SESSION.md`._
 
-## Session 10: ChatGPT browser extension (AD-32), committed `566f561` (not pushed)
+## Session 11: Traffic drawer (AD-33), real-browser result, pushed
+
+- **Dashboard:** the Inspector's report list ("Traffic") is now an overlay drawer, closed by default, opened from a **Traffic** toolbar button or `T`. It closes with ✕, Escape, a click outside, or by choosing a report. The report and claim detail use the full width. The toolbar has the position plus newer/older buttons, and a dot for new reports. Responsive: the drawer is fixed to the viewport at ≤ 980 px. No new dependency. Files: `engine/console/views/inspector.js`, `styles.css`, `lib.js`.
+- **ChatGPT extension on real chatgpt.com: passed (operator-reported, 2026-11-03).** It recognised the live answers, its checks reached the local engine, and the results appeared in the console. No code change was needed. The checklist items were not reported one by one; Local Network Access was not separately confirmed.
+- **Tests (final code, this session):**
+  - engine 65/65
+  - extension 14/14
+  - **console UI 12/12** (new: `node --test engine/test/console-ui.test.mjs`, headless Edge, TEST FIXTURE engine, 0 spend)
+  - import check clean
+  - Integration 13/13 (session 10) and plugin 21/21 (session 5) were not re-run: only console static files changed.
+- **Docs:** `SUBMISSION.md` (65 engine tests; ChatGPT extension section; limitations), README, `docs/DEVELOPMENT.md`, `CHANGELOG.md`, `extension/README.md`, `CHATGPT_EXTENSION.md` §5, AD-32 status, AD-33.
+- **Git:** `566f561` (extension), `62e6de5` (notes) and the session 11 commit "Add Inspector Traffic drawer and record ChatGPT real-browser test" (UTC timestamps, noreply identity) were pushed to `origin/main` with operator authorisation. Check with `git log --oneline origin/main -3`. Nothing amended, deployed or submitted.
+- **Running Docker stack:** it still serves the session 10 console. The drawer is not there until the console is hot-copied or the engine image is rebuilt (see `NEXT_SESSION.md`).
+
+## Session 10: ChatGPT browser extension (AD-32), committed `566f561` (pushed in session 11)
 
 - **What:** an opt-in MV3 extension (`extension/`), engine routes `/v1/extension/*` (`engine/src/extension.ts`), and four console pages under "ChatGPT": Activity, Claim explorer, Trends, Extension. Design and research: `research/CHATGPT_EXTENSION.md`.
 - **Verified:**
@@ -13,7 +27,7 @@ _Last updated: 2026-11-03 (session 10: ChatGPT browser extension, committed loca
   - live database migrated in place (backup `engine/data/backup-before-extension-migration.db`)
 - **Not verified:** real chatgpt.com (needs the operator's signed-in browser; checklist in `CHATGPT_EXTENSION.md` §5) and Chrome Local Network Access behaviour.
 - **Running stack:** the engine image was rebuilt and restarted with this code, so the console at :8090 already has the new pages. Extension settings are at their defaults (accept on, live verification on, 50 a day, 6 a minute, 30-day retention). There are no paired browsers.
-- **Git:** committed locally on `main` as `566f5616bfde491f1f48faea6965972459ad20ca` (UTC timestamps, noreply identity), followed by a commit recording it in these notes. `main` is ahead of `origin/main`; **not pushed, deployed, published or submitted.**
+- **Git:** committed locally on `main` as `566f5616bfde491f1f48faea6965972459ad20ca` (UTC timestamps, noreply identity), followed by a commit recording it in these notes. At the end of session 10 it was not pushed; **both were pushed in session 11** (see above). Not deployed or submitted.
 - **Pre-commit audit (operator-authorised):**
   - secret, personal-data, local-path and time-zone scan of all 40 files: clean
   - nothing from `engine/data/`, `.env` or test results staged
@@ -66,8 +80,9 @@ Halflife is a freshness intelligence layer for LLM applications. Its premise: ev
 | Deployment | **Done:** `setup.mjs` plus compose; config rendered from the keys present | integration suite builds from scratch |
 | Hosted LLM: **DeepSeek via Bifrost's native provider** | **Live-verified** (AD-17). Judge `deepseek/deepseek-flash`, thinking off | `live-deepseek.json` 6/6; about 3.5k tokens per checked claim |
 | **Tavily free-allowance guard** | **Done** (AD-19): engine `CreditGuard` plus script `spend-guard.mjs`; ceiling 800 of 1000, 200 reserved | 10 unit tests; ledger `deploy/test/results/spend-ledger.jsonl` |
-| ChatGPT extension (AD-32) | **Done, not yet tried on real chatgpt.com** | 11 engine + 8 adapter + 6 e2e tests (session 10) |
-| Tests | **65 engine, 21 plugin (`-race`), 13 integration, 14 extension: all pass** (session 10; plugin last run session 5, unchanged since) | `deploy/test/results/integration.json`, `plugin-test-2026-11-02.log` |
+| ChatGPT extension (AD-32) | **Done; works on real chatgpt.com** (operator-tested, session 11) | 11 engine + 8 adapter + 6 e2e tests (session 10, re-run session 11) |
+| Inspector Traffic drawer (AD-33) | **Done** (session 11) | 12 console UI checks in headless Edge; screenshots at 1440/820/390 px, light and dark |
+| Tests | **65 engine, 21 plugin (`-race`), 13 integration, 14 extension, 12 console UI: all pass** (engine, extension and console UI re-run in session 11; integration in session 10; plugin in session 5, unchanged since) | `deploy/test/results/integration.json`, `plugin-test-2026-11-02.log` |
 | **Real LLM + Tavily run** | **DONE** (session 4): live scripts, gateway end to end with 5 prompt types, cache policy live | `deploy/test/results/live-*.json` |
 | Tavily MCP (dev tooling) | **Decided: not connected** (AD-18) | duplicates WebSearch/WebFetch/curl plus the scripted API probes |
 | Evaluation harness | **v1/v2 + FreshQA done** (AD-28): detection 100 items (assess-only), verification 59 items with hand adjudication. Calibration not done | `eval/results/latest-freshqa.md` |
@@ -124,10 +139,10 @@ Halflife is a freshness intelligence layer for LLM applications. Its premise: ev
 
 ## Current priorities (in order)
 
-0. **ChatGPT extension:**
-   - **Next:** real-browser testing on chatgpt.com, including Chrome Local Network Access behaviour (the manual checklist in `research/CHATGPT_EXTENSION.md` §5). Fix the adapter if the live DOM differs.
-   - Push `main` only when the operator authorises it.
-   - Optionally add the extension to the demo script.
+0. **Done in session 11:** the real-chatgpt.com test (operator) and the push. Remaining, optional:
+   - add the extension to the demo script
+   - refresh the running stack's console, so the drawer is live at :8090
+   - re-take the sanitised screenshots: they predate the drawer
 
 1. **Record the demo video** (needs a human with a screen recorder; follow `research/DEMO_SCRIPT.md`).
 2. **Confirm the official Problem 04 and 06 wording and rubric,** then finalise `research/SUBMISSION.md`. Submit by 2026-11-15, but only when the operator authorises it.

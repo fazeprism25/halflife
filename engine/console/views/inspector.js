@@ -14,23 +14,96 @@ export function renderInspector(root, { params, onEngineEvent }) {
   let current = null;
   let disposed = false;
 
-  const feedList = h("div", { class: "feed-list", role: "list" });
+  // ---- Traffic drawer: an overlay over the workspace, closed by default (not a permanent column).
+  // Open: the rest of the console is inert, so focus stays in the drawer. Close: button, Escape,
+  // or a click on the scrim; focus returns to the toggle.
+  let drawerOpen = false;
+  let listLoaded = false;
+  let seenTopId = null;
+  const feedList = h("div", { class: "feed-list", role: "list", onkeydown: onFeedKey });
   const feedCount = h("span", { class: "muted mono", style: { fontSize: "11px" } });
   const detail = h("section", { class: "detail", "aria-live": "polite" });
-  root.append(
-    h("div", { class: "inspector" },
-      h("aside", { class: "feed", "aria-label": "Reports" },
-        h("div", { class: "feed-head" }, h("strong", { style: { fontSize: "13px" } }, "Traffic"), feedCount),
-        feedList),
-      detail),
-  );
+  const toggleCount = h("span", { class: "drawer-toggle-count" });
+  const newNote = h("span", { class: "sr-only" });
+  const toggle = h("button", { class: "btn-ghost drawer-toggle", type: "button", "aria-expanded": "false", "aria-controls": "traffic-drawer", "aria-keyshortcuts": "t", title: "Show traffic (T)", onclick: () => setDrawer(!drawerOpen) },
+    icon("panel"), h("span", {}, "Traffic"), toggleCount, h("span", { class: "new-dot", "aria-hidden": "true" }), newNote);
+  const position = h("span", { class: "bar-position mono muted" });
+  const newer = h("button", { class: "btn-ghost btn-small", type: "button", "aria-label": "Newer report", title: "Newer report", onclick: () => step(-1) }, icon("chevron-up"));
+  const older = h("button", { class: "btn-ghost btn-small", type: "button", "aria-label": "Older report", title: "Older report", onclick: () => step(1) }, icon("chevron-down"));
+  const bar = h("div", { class: "inspector-bar" }, toggle, h("span", { class: "bar-nav" }, position, newer, older));
+  const drawer = h("aside", { class: "feed drawer", id: "traffic-drawer", role: "dialog", "aria-modal": "true", "aria-labelledby": "traffic-title", "data-open": "false" },
+    h("div", { class: "feed-head" },
+      h("strong", { id: "traffic-title", style: { fontSize: "13px" } }, "Traffic"),
+      h("span", { class: "feed-head-end" }, feedCount,
+        h("button", { class: "icon-btn", type: "button", "aria-label": "Close traffic", title: "Close (Esc)", onclick: () => setDrawer(false) }, icon("cross")))),
+    feedList);
+  const scrim = h("div", { class: "drawer-scrim", "data-open": "false", "aria-hidden": "true", onclick: () => setDrawer(false) });
+  root.append(h("div", { class: "inspector" }, bar, detail, scrim, drawer));
+
+  const rail = document.querySelector(".rail");
+  function setDrawer(open) {
+    if (open === drawerOpen) return;
+    drawerOpen = open;
+    drawer.dataset.open = scrim.dataset.open = String(open);
+    toggle.setAttribute("aria-expanded", String(open));
+    for (const el of [bar, detail, rail]) el?.toggleAttribute("inert", open);
+    document.documentElement.classList.toggle("drawer-open", open);
+    if (open) {
+      tip.hide();
+      seenTopId = reports[0]?.id ?? null;
+      updateBar();
+      const target = feedList.querySelector('.feed-item[aria-current="true"]') ?? feedList.querySelector(".feed-item") ?? drawer.querySelector(".icon-btn");
+      target.focus();
+      target.scrollIntoView?.({ block: "nearest" });
+    } else {
+      toggle.focus();
+    }
+  }
+  function onDocKey(e) {
+    if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === "Escape" && drawerOpen) {
+      e.preventDefault();
+      setDrawer(false);
+    } else if ((e.key === "t" || e.key === "T") && !drawerOpen && !e.target.closest?.("input, textarea, select, [contenteditable]")) {
+      e.preventDefault();
+      setDrawer(true);
+    }
+  }
+  document.addEventListener("keydown", onDocKey);
+  function onFeedKey(e) {
+    const items = [...feedList.querySelectorAll(".feed-item")];
+    const i = items.indexOf(document.activeElement);
+    const to = { ArrowDown: i + 1, ArrowUp: i - 1, Home: 0, End: items.length - 1 }[e.key];
+    if (to === undefined || !items.length) return;
+    e.preventDefault();
+    items[Math.max(0, Math.min(items.length - 1, to))].focus();
+  }
+  function step(delta) {
+    const i = reports.findIndex((r) => r.id === selectedId);
+    const next = reports[i + delta];
+    if (i >= 0 && next) select(next.id);
+  }
+  function updateBar() {
+    const n = reports.length;
+    const i = reports.findIndex((r) => r.id === selectedId);
+    toggleCount.textContent = n ? (n >= 100 ? "100" : String(n)) : "";
+    const fresh = !drawerOpen && listLoaded && reports[0] && reports[0].id !== seenTopId;
+    toggle.dataset.new = String(Boolean(fresh));
+    newNote.textContent = fresh ? ", new reports" : "";
+    position.textContent = i >= 0 ? `${i + 1} of ${n >= 100 ? "latest 100" : n}` : "";
+    newer.disabled = !(i > 0);
+    older.disabled = !(i >= 0 && i < n - 1);
+  }
 
   async function loadList() {
     try {
       const r = await api("/v1/reports?limit=100");
       if (disposed) return;
       reports = r.reports;
+      if (!listLoaded) seenTopId = reports[0]?.id ?? null;
+      listLoaded = true;
       renderFeed();
+      updateBar();
       if (!selectedId && reports[0]) select(reports[0].id, false);
       if (!reports.length) renderEmpty();
     } catch (e) {
@@ -56,7 +129,7 @@ export function renderInspector(root, { params, onEngineEvent }) {
     else if (r.status === "failed") headline = [h("span", { class: "badge tone-critical" }, icon("cross"), "Analysis failed")];
     else if (r.status !== "done") headline = [h("span", { class: "muted" }, STAGES[r.stage] ?? "Queued", "…")];
     else headline = [summaryBadge(s), h("span", {}, s?.headline ?? "")];
-    return h("button", { class: "feed-item", role: "listitem", "aria-current": String(r.id === selectedId), onclick: () => select(r.id) },
+    return h("button", { class: "feed-item", role: "listitem", "aria-current": String(r.id === selectedId), onclick: () => { select(r.id); setDrawer(false); } },
       h("span", { class: "meta" }, h("span", { class: "mono", title: stamp(r.created_at) }, sameDay(r.created_at) ? time(r.created_at) : `${localDay(r.created_at)} ${time(r.created_at)}`), h("span", { class: "tag" }, r.source), r.model ? h("span", {}, r.model) : null, r.cache_hit ? h("span", { class: "tag" }, "hit") : null),
       h("span", { class: "risk-tick", title: `Highest P(outdated) among its claims: ${pct(risk)}` }, h("i", { style: { width: `${Math.round(risk * 100)}%` } })),
       h("span", { class: "preview" }, r.preview ?? ""),
@@ -68,6 +141,7 @@ export function renderInspector(root, { params, onEngineEvent }) {
     selectedId = id;
     selectedClaim = null;
     if (push) history.replaceState(null, "", `#/inspector/${id}`);
+    updateBar();
     for (const el of feedList.children) el.setAttribute("aria-current", String(el === feedList.children[reports.findIndex((r) => r.id === id)]));
     await loadDetail();
   }
@@ -347,6 +421,9 @@ export function renderInspector(root, { params, onEngineEvent }) {
   return () => {
     disposed = true;
     off();
+    document.removeEventListener("keydown", onDocKey);
+    rail?.removeAttribute("inert");
+    document.documentElement.classList.remove("drawer-open");
     tip.hide();
     clearTimeout(pending);
   };

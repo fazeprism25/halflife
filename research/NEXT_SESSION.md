@@ -1,8 +1,21 @@
 # Next Session
 
-_Read `PROJECT_STATE.md` first, then this file. Updated in session 10 (2026-11-03): ChatGPT browser extension._
+_Read `PROJECT_STATE.md` first, then this file. Updated in session 11 (2026-11-03): Inspector Traffic drawer, real-chatgpt.com result, push._
 
-## Session 10 summary (ChatGPT extension, AD-32), committed `566f561`, not pushed
+## Session 11 summary
+- **Inspector Traffic drawer (AD-33):** the permanent report column became an overlay drawer: a toolbar toggle or `T`; ✕, Escape, outside click or choosing a report closes it. The toolbar also has newer/older buttons and a new-report dot. Vanilla JS and CSS; no dependency.
+- **ChatGPT extension passed on real chatgpt.com** (operator-reported): it recognised the answers, reached the engine, and the results showed in the console. Not itemised per checklist step.
+- **Tests:** engine 65/65, extension 14/14, console UI 12/12 (new `engine/test/console-ui.test.mjs`), import check clean. Integration and plugin were not re-run (no server, plugin or deploy code changed).
+- **Git:** the session 11 commit on top of `62e6de5`. All three (`566f561`, `62e6de5`, session 11) were pushed to `origin/main` with operator authorisation; check with `git status` (should be up to date).
+
+## Exact next actions (session 12)
+1. **Refresh the running stack's console** (it still serves the session 10 console): `docker cp engine/console/. halflife-engine-1:/app/engine/console/` (from PowerShell), or rebuild the engine image only. Mind the disk.
+2. **Optional:** add the extension and the drawer to `research/DEMO_SCRIPT.md` (one live check costs at most 3 Tavily credits); re-take the sanitised screenshots in `docs/assets/screenshots/` (they predate the drawer; blank clock times and the zone again).
+3. **Optional:** re-run the §5 checklist items not reported one by one (themes, pause/engine stopped, Chrome Local Network Access), after any ChatGPT redesign; Firefox support; an e2e case for `data-is-streaming`.
+4. **Then the operator queue:** demo video, official problem wording, submission (by 2026-11-15, only with explicit authorisation).
+5. **Committing:** UTC timestamps (`GIT_AUTHOR_DATE="$(date -u +%s) +0000" GIT_COMMITTER_DATE="$(date -u +%s) +0000" git commit …`); secret scan on `git ls-files` before every push; push only with operator authorisation.
+
+## Session 10 summary (ChatGPT extension, AD-32), committed `566f561` (pushed in session 11)
 - **Built:**
   - `extension/`: MV3; ChatGPT adapter for layouts A, B and C; shadow-DOM button and result; service worker holding the token in IndexedDB; popup with pairing, pause, recent checks, diagnostics and disconnect.
   - Engine `/v1/extension/*` in `engine/src/extension.ts`: pairing codes, origin-bound tokens, dedup, limits, kill switch, estimate-only mode, `learn:false`, retention and deletion, console queries.
@@ -15,7 +28,7 @@ _Read `PROJECT_STATE.md` first, then this file. Updated in session 10 (2026-11-0
 - **The running stack already serves the new code** (engine image rebuilt). Live database backup: `engine/data/backup-before-extension-migration.db`.
 - **Visual review:** `node engine/test/fixture-server.ts --seed --port 8099`, then open <http://127.0.0.1:8099/#/activity>. This is TEST FIXTURE data: scripted model and search, 0 spend.
 
-## Exact next actions (session 11)
+## Next actions as written in session 10 (items 1 and 2 done in session 11)
 1. **Operator: real-browser testing on chatgpt.com, including Chrome Local Network Access behaviour.** Load `extension/` unpacked, pair it from Console → ChatGPT → Extension, and run the 10-step checklist in `research/CHATGPT_EXTENSION.md` §5 (step 10 covers Local Network Access).
    - The popup's diagnostics line shows whether the adapter recognises the live DOM.
    - If no layout is recognised, inspect one assistant message's attributes and add a layout to `extension/src/adapters/chatgpt.js`, plus a fixture test in `extension/test/adapter.test.mjs`.
@@ -82,7 +95,8 @@ Quality gate passed: 54 engine tests, 21 Go tests with `-race`, 13 integration c
   - Write into the scratchpad: a path with spaces silently fails.
   - Use PowerShell `Start-Process … -Wait`.
 - **`docker cp` with host paths: use PowerShell.** Git Bash mangles `/c/...`.
-- **Never edit regexes through shell heredocs.** It happened again this session (a literal backspace). Use the Edit tool, or a Node script written with the Write tool.
+- **Never edit regexes or escapes through shell heredocs or `node -e` in Bash.** It happened in session 10 (a literal backspace) and again in session 11 (`"\\r"` became a literal carriage return). Use the Edit tool, or a Node script written with the Write tool.
+- **Console UI test:** `node --test engine/test/console-ui.test.mjs` (headless Edge, own fixture engine on a free port). `HALFLIFE_UI_SHOTS=<dir>` saves screenshots; use a scratchpad path without spaces. With CDP `Input.dispatchKeyEvent`, Enter needs `text: "\r"` to activate a button.
 - **Integration suite** (port 8080):
   1. `docker compose -f deploy/docker-compose.yml stop`
   2. `NO_BUILD=1 node deploy/test/integration.mjs`

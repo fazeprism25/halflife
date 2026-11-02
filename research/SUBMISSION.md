@@ -1,6 +1,6 @@
 # Halflife — Submission Draft
 
-_Draft for the Geek Room Global AI Hackathon 2026 (deadline 2026-11-15). Written 2026-11-02, session 5. Not submitted. Numbers come from `eval/results/latest-freshqa.md`, `latest-v1.md`, `latest-v2.md` and the live scripts' results in `deploy/test/results/`._
+_Draft for the Geek Room Global AI Hackathon 2026 (deadline 2026-11-15). Written 2026-11-02, session 5; updated 2026-11-03, session 11 (test counts, ChatGPT extension, console). Not submitted. Numbers come from `eval/results/latest-freshqa.md`, `latest-v1.md`, `latest-v2.md` and the live scripts' results in `deploy/test/results/`._
 
 ## One line
 
@@ -33,7 +33,8 @@ For every answer passing through Bifrost:
    - expires a cached answer when its claims' reuse window ends
    - links cache hits to the original analysis at no cost
    - in `verify` mode, annotates the reply with the outdated claim and its source, and never caches it
-4. **Console:** a live report feed, each answer with its claims highlighted in place, a claim panel with timeline, sources, verified quotes and the three separate measures, the class model, and spend against every limit.
+4. **Console:** a live report feed (a Traffic drawer over the Inspector, so the report uses the full width), each answer with its claims highlighted in place, a claim panel with timeline, sources, verified quotes and the three separate measures, the class model, and spend against every limit.
+5. **ChatGPT browser extension (opt-in, AD-32):** a **Check freshness** button under completed ChatGPT answers sends that one answer and its question to the user's **local** engine, which runs the same pipeline (extraction, freshness model, Bifrost-routed judge, Tavily relay, credit guard). The console's ChatGPT section shows Activity, a Claim explorer, Trends and the extension settings. Details below.
 
 ## Technical architecture
 
@@ -71,6 +72,17 @@ Both use `deepseek/deepseek-flash` (thinking off) through Bifrost. Everything th
 
 **During development**, the project was built with an AI coding assistant (Claude Code, Anthropic). It wrote most of the code, tests and documentation under the operator's direction. It also ran the evaluations, and did the evaluation adjudications by independent web search; each is recorded with sources in `eval/freshqa-adjudications.json`. Design decisions, measured results and errors are logged in `research/IMPLEMENTATION_LOG.md`.
 
+## ChatGPT browser extension (AD-32)
+
+- **What it is:** a Manifest V3 extension (`extension/`, no dependencies, no build step, not in any store). It adds **Check freshness** under completed answers on chatgpt.com and chat.openai.com, and shows a compact result in place. Nothing is sent until the user clicks, and only that answer and the user message before it are sent.
+- **One engine:** the extension talks only to the local engine's `/v1/extension/*` routes. It holds no provider key and never calls Bifrost or Tavily. Its checks go through the unchanged pipeline with `learn: false`, under the same Tavily credit guard as gateway traffic.
+- **Security:** pairing by a one-time console code; an origin-bound, revocable token (only its SHA-256 is stored); extension routes served only on a loopback Host; a token can create and read only its own checks. Per-minute and daily limits, a kill switch and an estimate-only mode (0 credits).
+- **Console:** Activity, Claim explorer, Trends and Extension pages under "ChatGPT".
+- **Verified:**
+  - automated: 11 engine tests (part of the 65), 8 adapter tests and 6 end-to-end tests that load the real unpacked extension in headless Edge against a TEST FIXTURE ChatGPT page and the real engine HTTP server
+  - live assess-only smoke test through the running stack (real DeepSeek extraction, 0 Tavily credits)
+  - **real browser, real chatgpt.com (operator, 2026-11-03):** the operator loaded the extension in their own signed-in browser. It recognised answers on the live page, its checks reached the local engine, and the results appeared in the console's ChatGPT pages. No code change was needed.
+
 ## Results
 
 All numbers come from real DeepSeek and real Tavily calls. Nothing is mocked.
@@ -105,9 +117,9 @@ All numbers come from real DeepSeek and real Tavily calls. Nothing is mocked.
 | Real operational problem | Stale answers served from cache, and LLM outdated knowledge (Problem section). | Argued; demo |
 | Supported extension points only | Go plugin `.so` (6 hooks), Relays, semantic-cache TTL key, cache admin API, native DeepSeek provider. No Bifrost source changes. | **Done** |
 | Reproducible integration | `deploy/setup.mjs` plus Docker Compose. The gateway image clones the pinned tag and checks the commit hash. | Done; clean-setup check, see "Unproven" |
-| Tests | 54 engine tests; 21 Go plugin tests with `-race`; 13 end-to-end integration checks on the real Bifrost binary (fixture upstreams, labelled) | **Done** |
+| Tests | 65 engine tests; 21 Go plugin tests with `-race`; 13 end-to-end integration checks on the real Bifrost binary (fixture upstreams, labelled); 14 browser-extension tests (8 adapter, 6 end-to-end with the real extension); 12 console UI checks in a real headless browser | **Done** (engine 65/65, extension 14/14 and console UI 12/12 re-run 2026-11-03; integration 13/13 last run 2026-11-03 in session 10; plugin 21/21 last run 2026-11-02) |
 | Fails safe | Every hook recovers panics and passes the response through; bounded queue; engine down → inference unaffected (integration check) | **Done** |
-| Docs | README, `.env.example`, architecture decisions (AD-01–AD-28), implementation log | Done |
+| Docs | README, `.env.example`, architecture decisions (AD-01–AD-33), implementation log | Done |
 | Upstream-ready | Plugin depends only on `core/schemas` and the stdlib. **No upstream PR or proposal written yet.** | **Partial** |
 
 ### Tavily Problem 06: claim-level freshness verification
@@ -136,4 +148,9 @@ All numbers come from real DeepSeek and real Tavily calls. Nothing is mocked.
 5. **Bifrost UI:** the gateway image ships a stub UI page (the Node UI build is skipped for disk and RAM).
 6. **DeepSeek dollar metering by the Bifrost VK budget** is unverified (catalog pricing for `deepseek-flash`); DeepSeek spend is bounded by the engine's own guard instead.
 7. **Evaluation size:** 100 detection and 59 verification items, judged by one model (`deepseek-flash`). Adjudications were made by the same AI assistant that built the system, with sources recorded, but not by an independent human.
-8. **Demo video:** not recorded yet; transcript and stills of a real run exist.
+8. **Demo video:** not recorded yet; transcript and stills of a real run exist. The sanitised console stills (2026-11-02) predate the Traffic drawer.
+9. **ChatGPT extension:**
+   - It reads ChatGPT's DOM, which changes without notice. A redesign can hide the button until the adapter is updated; the popup's diagnostics line shows when no answers are recognised.
+   - The real-chatgpt.com test was done once, by the operator, and reported as a whole (recognition, engine round trip, console). The individual items of the manual checklist (`research/CHATGPT_EXTENSION.md` §5), including Chrome's Local Network Access behaviour, were not reported one by one.
+   - Chromium only (Chrome, Edge); Firefox not tried. Text only: images, files and canvas documents are not checked. Not published to any extension store.
+   - The extension needs the engine running on the same machine; it is not a hosted service.

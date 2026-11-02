@@ -4,6 +4,18 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ## [Unreleased]
 
+### Changed (2026-11-03): Inspector Traffic drawer (AD-33)
+
+- The Inspector's report list ("Traffic") is no longer a permanent left column. It is an overlay drawer opened from a **Traffic** button in a slim toolbar (or `T`), and closed with its close button, Escape, a click outside it, or by choosing a report. The report and claim detail now use the full workspace width.
+- Keyboard: focus moves into the drawer and returns to the toggle; the rest of the console is inert while it is open; arrow keys, Home and End move between reports. Report rows and the close button now show a focus ring.
+- The toolbar shows the selected report's position ("3 of 8") with newer/older buttons, and marks new reports that arrived while the drawer was closed.
+- Phone and tablet widths: the drawer is fixed to the viewport, leaving a strip to tap; the toolbar sticks to the top. Reduced motion turns off the slide.
+- Tests: `engine/test/console-ui.test.mjs`, 12 checks in headless Edge/Chrome against the TEST FIXTURE engine.
+
+### Verified (2026-11-03): ChatGPT extension on real chatgpt.com
+
+- The operator ran the extension in their own signed-in browser on chatgpt.com: it recognised the live page, its checks reached the local engine, and the results appeared in the console. No code change was needed.
+
 ### Added (2026-11-03): ChatGPT browser extension (AD-32)
 
 - `extension/`: an opt-in Manifest V3 extension for chatgpt.com and chat.openai.com.

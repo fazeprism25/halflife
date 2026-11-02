@@ -376,3 +376,20 @@ Each entry: decision, why, alternatives considered or rejected. Decisions marked
   - It serves a TEST FIXTURE page as `https://chatgpt.com` through `--host-resolver-rules` and a throwaway self-signed certificate.
   - Headless `--dump-dom` runs no rendering frames: no rAF, and no IntersectionObserver after a programmatic scroll. So the adapter races rAF against a timer, and the virtualisation fixture hydrates with a layout poll.
 - **Status (AD-32):** implemented and committed in `566f561` (session 10). Not yet verified on the real chatgpt.com or against Chrome Local Network Access; that is the next task.
+- **Status update (session 11, 2026-11-03):** the operator tested the extension in their own signed-in browser on real chatgpt.com. It recognised the live answers, its checks reached the local engine, and the results appeared in the console. No adapter change was needed. The §5 checklist items were not reported one by one; Local Network Access behaviour was not separately confirmed.
+
+## AD-33 Inspector Traffic list becomes an overlay drawer (session 11, 2026-11-03)
+- **Decision:** the Inspector's report list ("Traffic") is no longer a permanent 296 px column. It is an overlay drawer, closed by default, opened from a **Traffic** button in a slim toolbar above the report (or the `T` key). The report and claim detail use the full workspace width.
+- **Why:** the permanent column took about a fifth of the workspace on every visit, while the list is needed only when switching reports. The operator asked for it to be hidden until wanted.
+- **Behaviour:**
+  - Closes with its close button, Escape, a click on the scrim (which covers the whole viewport, the nav rail included), or by choosing a report. Focus moves into the drawer on open (the selected report) and back to the toggle on close.
+  - While it is open, the toolbar, the report and the nav rail are `inert`, so it behaves as a modal dialog (`role="dialog"`, `aria-modal`). Arrow keys, Home and End move between reports.
+  - The toolbar shows the selected report's position ("3 of 8") with newer/older buttons, so stepping through traffic doesn't need the drawer. A dot on the toggle marks reports that arrived while it was closed.
+  - The list, live updates, selection, URL (`#/inspector/<id>`) and the 100-report window are unchanged; only where the list is shown changed.
+- **Implementation:** vanilla, in the existing modules (`views/inspector.js`, `styles.css`, three icons in `lib.js`); no dependency. Slide and fade 200 ms; none under `prefers-reduced-motion`. A closed drawer is `visibility: hidden`, so it leaves the tab order and the accessibility tree.
+- **Narrow screens (≤ 980 px):** the drawer is fixed to the viewport, at most 360 px wide and leaving at least 40 px to tap outside; page scroll is locked while it is open; the toolbar is sticky.
+- **Rejected:**
+  - a push-style sidebar that narrows the workspace when open (the operator asked for an overlay)
+  - `<dialog>.showModal()` (top-layer rendering makes the slide-in from the workspace edge and the scrim harder to control; `inert` gives the same focus containment)
+  - remembering the open state across visits (the list should not reappear permanently)
+- **Tests:** `engine/test/console-ui.test.mjs`, 12 checks in headless Edge/Chrome against the TEST FIXTURE engine. Kept out of `npm test` so the engine suite stays browser-free.

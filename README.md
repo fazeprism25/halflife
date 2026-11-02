@@ -82,7 +82,7 @@ A class-level *expected lifespan* (half-life with a 90% interval) is also shown;
 - `verify` mode: the reply waits for verification and carries a freshness note when a claim is outdated, and is never cached.
 - Spend bounded in layers: per answer, per day, lifetime, a Tavily free-allowance guard, and the Bifrost virtual-key dollar budget.
 - Honest degradation: without a Tavily key, risky claims are reported as "not checked"; without an LLM key, extraction is rule-based and labelled; no verdict is ever invented.
-- Operator console: live report feed, claim spans highlighted in the answer, sources and quotes, the class model, spend and guard status.
+- Operator console: live report feed (a Traffic drawer over the Inspector), claim spans highlighted in the answer, sources and quotes, the class model, spend and guard status.
 - Engine has **zero npm dependencies** (Node 24 native TypeScript stripping, `node:sqlite`, `node:test`).
 
 ## Architecture
@@ -221,7 +221,7 @@ The console (port 8090) additionally uses `/v1/events` (server-sent events) and 
 
 ![Halflife console: a claim-level report where a cached answer was invalidated](docs/assets/screenshots/04-node-version-invalidated.png)
 
-More console screenshots, captured from a local run on 2026-11-02, are in [`docs/assets/screenshots/`](docs/assets/screenshots/). Local clock times and the time zone have been blanked out; nothing else was changed.
+More console screenshots, captured from a local run on 2026-11-02, are in [`docs/assets/screenshots/`](docs/assets/screenshots/). Local clock times and the time zone have been blanked out; nothing else was changed. They predate the Traffic drawer (2026-11-03): the Inspector's report list is now an overlay opened with the **Traffic** button (or `T`), and the report itself uses the full width.
 
 ## ChatGPT extension
 
@@ -244,6 +244,7 @@ docker build -f deploy/gateway.Dockerfile --target plugin-test --no-cache-filter
                                                                        # 21 Go plugin tests with -race, plus benchmarks
 node deploy/test/integration.mjs                                       # 13 end-to-end checks against real Bifrost
 node --test "extension/test/*.test.mjs"   # 8 adapter + 6 end-to-end browser-extension tests (Edge/Chrome)
+node --test engine/test/console-ui.test.mjs # 12 console UI checks in headless Edge/Chrome (test fixtures)
 ```
 
 The integration suite builds and starts the real gateway, plugin and engine, with scripted **test fixtures** (`deploy/test/fixtures.mjs`) standing in for the LLM provider and Tavily, so it needs **no credentials and spends nothing**. It uses port 8080, so stop a running stack first. Live tests against real services (which spend credits, bounded by a guard) are described in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).

@@ -95,7 +95,9 @@ Nothing else is sent: no other messages, page content, titles, account data or c
   - The live database migrated in place: 308 reports kept, 4 columns and the token table added. It was backed up first to `engine/data/backup-before-extension-migration.db` (gitignored).
   - The smoke check was deleted and its token revoked afterwards.
 
-**Not yet verified, so it needs a human with a signed-in ChatGPT account:**
+**Real browser on chatgpt.com (session 11, 2026-11-03): passed, operator-reported.** The operator loaded the extension unpacked in their own signed-in browser and used it on chatgpt.com. It recognised the live answers, its checks reached the local engine, and the results appeared in the console's ChatGPT pages. No adapter change was needed. The result was reported as a whole, not item by item, so the checklist below is kept for re-testing after ChatGPT redesigns; items 8 to 10 (themes, pause/engine-stopped, Local Network Access) were not separately confirmed.
+
+**Manual checklist (needs a human with a signed-in ChatGPT account):**
 1. Load `extension/` unpacked in Chrome or Edge and pair it (see `extension/README.md`).
 2. On chatgpt.com, open an existing conversation. The popup's diagnostics line should report a layout and the number of answers. **If it says "no ChatGPT answers recognised", the DOM has changed and the adapter needs updating.**
 3. A **Check freshness** button appears under each finished answer, and not under one that is still being written. It appears once that answer finishes.

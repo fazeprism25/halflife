@@ -188,6 +188,9 @@ const ICONS = {
   dot: '<circle cx="8" cy="8" r="2.2" fill="currentColor" stroke="none" />',
   link: '<path d="M7 4H4v8h8V9M9.5 3H13v3.5M13 3 7.5 8.5" />',
   arrow: '<path d="M3 8h10M9 4l4 4-4 4" />',
+  panel: '<rect x="2.5" y="3" width="11" height="10" rx="1.5" /><path d="M6.5 3v10" />',
+  "chevron-up": '<path d="M4 10l4-4 4 4" />',
+  "chevron-down": '<path d="M4 6l4 4 4-4" />',
   copy: '<rect x="5" y="5" width="8" height="8" rx="1.5" /><path d="M3 10.5V3h7.5" />',
 };
 export function icon(name, cls = "") {

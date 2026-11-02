@@ -4,6 +4,44 @@ Newest first. Every entry records what was done, the files touched, the tests ru
 
 ---
 
+## 2026-11-03, session 11 (Inspector Traffic drawer, AD-33; real-chatgpt.com result; push)
+
+- **Operator report:** the ChatGPT extension was tested on real chatgpt.com in the operator's signed-in browser. It recognised the answers, its checks reached the local engine, and the results appeared in the console. No adapter change was needed. Recorded in `CHATGPT_EXTENSION.md` §5, AD-32, `SUBMISSION.md` and `extension/README.md`. The checklist items were not reported one by one (Local Network Access not separately confirmed).
+- **Dashboard (AD-33):** the Inspector's permanent Traffic column became an overlay drawer.
+  - `engine/console/views/inspector.js`:
+    - toolbar with the **Traffic** toggle (count, new-report dot), the position ("n of N") and newer/older buttons
+    - drawer (`role="dialog"`, `aria-modal`) and a viewport scrim
+    - `setDrawer()` makes the toolbar, report and nav rail `inert` while open, and moves focus in and back
+    - Escape, the `T` shortcut, arrow/Home/End keys in the list; choosing a report closes the drawer
+    - the cleanup removes the document listener, `inert` and the scroll-lock class, so other pages are unaffected
+  - `engine/console/styles.css`: the `.inspector` grid became a column (toolbar + detail); drawer, scrim, toolbar and pill styles; `--scrim` and `--shadow-overlay` tokens in the light and both dark blocks; reduced motion; the ≤ 980 px rules (fixed drawer, sticky toolbar, scroll lock) replace the old stacked list.
+  - `engine/console/lib.js`: icons `panel`, `chevron-up`, `chevron-down`.
+  - **Accessibility fix found on the way:** `.feed-item` used `all: unset` after the global `:focus-visible` rule, so report rows had no focus ring. Rows and the new close button now get one.
+- **New test:** `engine/test/console-ui.test.mjs`, 12 checks with real input events (CDP mouse and key events) in headless Edge, against `fixture-server.ts --seed` (0 spend):
+  - closed by default and full width
+  - overlay without reflow, focus in, console inert
+  - Escape, scrim, rail-click and close-button dismissal, with focus restored
+  - `T`, arrow keys and Enter
+  - newer/older
+  - new-report mark
+  - 390 px and 820 px layouts with no horizontal scroll
+  - light and dark tokens
+  - navigating away leaves nothing inert, and every other route still renders
+  - Two first-run failures were test-harness issues: `clientWidth` excludes the scrollbar, and CDP Enter needs `text: "\r"`.
+  - A shell edit put a literal carriage return in the test file again; fixed with a Node script (see the environment gotchas).
+- **Visual review:** screenshots at 1440, 820 and 390 px, in light and dark (`HALFLIFE_UI_SHOTS`). Two refinements came from it: the scrim now covers the nav rail, and the toggle count is a pill.
+- **Docs:**
+  - `SUBMISSION.md`: tests 54 → 65 engine plus 14 extension and 12 console UI; AD range to AD-33; a ChatGPT extension section; limitations 8–9
+  - README (tests, console line, screenshot note), `docs/DEVELOPMENT.md` (test table), `CHANGELOG.md`, `extension/README.md`
+- **Tests run this session (final code):**
+  - engine 65/65 (`cd engine && npm test`)
+  - extension 14/14 (`node --test "extension/test/*.test.mjs"`)
+  - console UI 12/12 (`node --test engine/test/console-ui.test.mjs`)
+  - import check clean
+  - Integration (13/13) and plugin (21/21) were **not** re-run: no engine server, plugin or deploy code changed, only console static files.
+- **Not done:** the running Docker stack still serves the previous console (no rebuild or hot-copy this session). See `NEXT_SESSION.md`.
+- **Git:** one new commit for this session on top of `62e6de5`, with UTC timestamps; `566f561`, `62e6de5` and this commit were pushed to `origin/main` with the operator's authorisation. Nothing was amended, deployed or submitted.
+
 ## 2026-11-03, session 10 (ChatGPT browser extension, AD-32)
 
 ### Request

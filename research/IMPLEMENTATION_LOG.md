@@ -71,7 +71,17 @@ An opt-in ChatGPT extension that sends one user-selected answer to the existing 
 ### Not done or not verified
 - **Not tested on real chatgpt.com.** That needs the operator's signed-in browser; see the manual checklist in `research/CHATGPT_EXTENSION.md` §5.
 - **Local Network Access** behaviour in real Chrome is unverified.
-- **No commit was made in this session.**
+- `research/SUBMISSION.md` still quotes the session 9 test counts; left for the submission pass.
+
+### Commit (operator-authorised; no push)
+- **Audit before committing:**
+  - full diff reviewed; the changes to tracked files are limited to the extension wiring
+  - secret, personal-data, local-path and time-zone scan of all 40 files: clean
+  - nothing from `engine/data/`, `.env` or test results staged
+- **Tests re-run:** engine 65/65 and extension 14/14.
+- **Integration not repeated:** it rebuilds the stack. The running engine image's `src/` and `console/` are byte-identical to the commit, so the earlier 13/13 run covers this code.
+- **Commit:** `566f5616bfde491f1f48faea6965972459ad20ca` on `main`, UTC author and committer dates, repository-local noreply identity. A second commit records it in the four context files.
+- **Not pushed, deployed, published or submitted.**
 
 ---
 

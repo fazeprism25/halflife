@@ -1,8 +1,8 @@
 # Halflife: Project State
 
-_Last updated: 2026-11-03 (session 10: ChatGPT browser extension, uncommitted). The persistent source of truth: a fresh session reads this file, then `NEXT_SESSION.md`._
+_Last updated: 2026-11-03 (session 10: ChatGPT browser extension, committed locally as `566f561`, not pushed). The persistent source of truth: a fresh session reads this file, then `NEXT_SESSION.md`._
 
-## Session 10: ChatGPT browser extension (AD-32), uncommitted
+## Session 10: ChatGPT browser extension (AD-32), committed `566f561` (not pushed)
 
 - **What:** an opt-in MV3 extension (`extension/`), engine routes `/v1/extension/*` (`engine/src/extension.ts`), and four console pages under "ChatGPT": Activity, Claim explorer, Trends, Extension. Design and research: `research/CHATGPT_EXTENSION.md`.
 - **Verified:**
@@ -13,7 +13,12 @@ _Last updated: 2026-11-03 (session 10: ChatGPT browser extension, uncommitted). 
   - live database migrated in place (backup `engine/data/backup-before-extension-migration.db`)
 - **Not verified:** real chatgpt.com (needs the operator's signed-in browser; checklist in `CHATGPT_EXTENSION.md` §5) and Chrome Local Network Access behaviour.
 - **Running stack:** the engine image was rebuilt and restarted with this code, so the console at :8090 already has the new pages. Extension settings are at their defaults (accept on, live verification on, 50 a day, 6 a minute, 30-day retention). There are no paired browsers.
-- **Git:** all session 10 work is **uncommitted**. Commit with UTC timestamps once the operator agrees; see NEXT_SESSION.
+- **Git:** committed locally on `main` as `566f5616bfde491f1f48faea6965972459ad20ca` (UTC timestamps, noreply identity), followed by a commit recording it in these notes. `main` is ahead of `origin/main`; **not pushed, deployed, published or submitted.**
+- **Pre-commit audit (operator-authorised):**
+  - secret, personal-data, local-path and time-zone scan of all 40 files: clean
+  - nothing from `engine/data/`, `.env` or test results staged
+  - engine 65/65 and extension 14/14 re-run
+  - the running engine image's `src/` and `console/` are byte-identical to the commit, so the session 10 integration run (13/13) covers this code
 
 ## Repository (sessions 6–9)
 
@@ -120,8 +125,8 @@ Halflife is a freshness intelligence layer for LLM applications. Its premise: ev
 ## Current priorities (in order)
 
 0. **ChatGPT extension:**
-   - The operator runs the manual chatgpt.com checklist (`research/CHATGPT_EXTENSION.md` §5). Fix the adapter if the live DOM differs.
-   - Commit session 10 (UTC timestamps) and push when authorised.
+   - **Next:** real-browser testing on chatgpt.com, including Chrome Local Network Access behaviour (the manual checklist in `research/CHATGPT_EXTENSION.md` §5). Fix the adapter if the live DOM differs.
+   - Push `main` only when the operator authorises it.
    - Optionally add the extension to the demo script.
 
 1. **Record the demo video** (needs a human with a screen recorder; follow `research/DEMO_SCRIPT.md`).

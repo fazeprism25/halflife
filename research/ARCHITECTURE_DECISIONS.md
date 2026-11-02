@@ -375,3 +375,4 @@ Each entry: decision, why, alternatives considered or rejected. Decisions marked
   - Branded Chrome and Edge 137+ ignore `--load-extension`, so the end-to-end test loads the extension through CDP `Extensions.loadUnpacked` (`--remote-debugging-pipe --enable-unsafe-extension-debugging`).
   - It serves a TEST FIXTURE page as `https://chatgpt.com` through `--host-resolver-rules` and a throwaway self-signed certificate.
   - Headless `--dump-dom` runs no rendering frames: no rAF, and no IntersectionObserver after a programmatic scroll. So the adapter races rAF against a timer, and the virtualisation fixture hydrates with a layout poll.
+- **Status (AD-32):** implemented and committed in `566f561` (session 10). Not yet verified on the real chatgpt.com or against Chrome Local Network Access; that is the next task.

@@ -2,7 +2,7 @@
 
 _Read `PROJECT_STATE.md` first, then this file. Updated in session 10 (2026-11-03): ChatGPT browser extension._
 
-## Session 10 summary (ChatGPT extension, AD-32), uncommitted
+## Session 10 summary (ChatGPT extension, AD-32), committed `566f561`, not pushed
 - **Built:**
   - `extension/`: MV3; ChatGPT adapter for layouts A, B and C; shadow-DOM button and result; service worker holding the token in IndexedDB; popup with pairing, pause, recent checks, diagnostics and disconnect.
   - Engine `/v1/extension/*` in `engine/src/extension.ts`: pairing codes, origin-bound tokens, dedup, limits, kill switch, estimate-only mode, `learn:false`, retention and deletion, console queries.
@@ -16,12 +16,15 @@ _Read `PROJECT_STATE.md` first, then this file. Updated in session 10 (2026-11-0
 - **Visual review:** `node engine/test/fixture-server.ts --seed --port 8099`, then open <http://127.0.0.1:8099/#/activity>. This is TEST FIXTURE data: scripted model and search, 0 spend.
 
 ## Exact next actions (session 11)
-1. **Operator: try the extension on real ChatGPT.** Load `extension/` unpacked, pair it from Console → ChatGPT → Extension, and run the 10-step checklist in `research/CHATGPT_EXTENSION.md` §5.
+1. **Operator: real-browser testing on chatgpt.com, including Chrome Local Network Access behaviour.** Load `extension/` unpacked, pair it from Console → ChatGPT → Extension, and run the 10-step checklist in `research/CHATGPT_EXTENSION.md` §5 (step 10 covers Local Network Access).
    - The popup's diagnostics line shows whether the adapter recognises the live DOM.
    - If no layout is recognised, inspect one assistant message's attributes and add a layout to `extension/src/adapters/chatgpt.js`, plus a fixture test in `extension/test/adapter.test.mjs`.
-2. **Commit session 10, after a secret scan of the staged files,** with UTC timestamps: `GIT_AUTHOR_DATE="$(date -u +%s) +0000" GIT_COMMITTER_DATE="$(date -u +%s) +0000" git commit …`. Push only when authorised.
+2. **Session 10 is committed locally:** `566f5616bfde491f1f48faea6965972459ad20ca`, then a commit recording it in these notes. `main` is ahead of `origin/main`.
+   - **Push only when the operator authorises it.** Before pushing, re-run the secret scan on `git ls-files`.
+   - Keep committing with UTC timestamps: `GIT_AUTHOR_DATE="$(date -u +%s) +0000" GIT_COMMITTER_DATE="$(date -u +%s) +0000" git commit …`.
+   - Fixes found during real-browser testing go in a new commit; don't amend `566f561`.
 3. **Optional:**
-   - add the extension to `research/DEMO_SCRIPT.md` and `SUBMISSION.md` (one live check costs at most 3 Tavily credits)
+   - add the extension to `research/DEMO_SCRIPT.md` and `SUBMISSION.md` (one live check costs at most 3 Tavily credits). `SUBMISSION.md` still quotes the session 9 test counts (54 engine tests).
    - Firefox support (MV3 `background.scripts`)
    - an e2e case for the `data-is-streaming` attribute path
 4. **Then the earlier queue:** demo video, problem wording, submission. All of these need the operator.

@@ -80,9 +80,9 @@ A class-level *expected lifespan* (half-life with a 90% interval) is also shown;
 - Claim-level verdicts with quotes verified against the source text; replacement values shown only when a verified quote states them.
 - Cache policy driven by freshness: TTL caps, `no-store` for prices, invalidation of confirmed-stale entries, expiry at the reuse window, cache hits linked to the original analysis at no cost.
 - `verify` mode: the reply waits for verification and carries a freshness note when a claim is outdated, and is never cached.
-- Spend bounded in layers: per answer, per day, lifetime, a Tavily free-allowance guard, and the Bifrost virtual-key dollar budget.
+- Spend bounded in layers: per answer, per day, lifetime, a Tavily account guard (a share of the allowance Tavily's usage API reports for your account), and the Bifrost virtual-key dollar budget.
 - Honest degradation: without a Tavily key, risky claims are reported as "not checked"; without an LLM key, extraction is rule-based and labelled; no verdict is ever invented.
-- Operator console: live report feed (a Traffic drawer over the Inspector), claim spans highlighted in the answer, sources and quotes, the class model, spend and guard status.
+- Operator console: a collapsible sidebar with the navigation and the live report feed (Traffic), claim spans highlighted in the answer, sources and quotes, the class model, live Tavily account usage, spend and guard status.
 - Engine has **zero npm dependencies** (Node 24 native TypeScript stripping, `node:sqlite`, `node:test`).
 
 ## Architecture
@@ -221,7 +221,7 @@ The console (port 8090) additionally uses `/v1/events` (server-sent events) and 
 
 ![Halflife console: a claim-level report where a cached answer was invalidated](docs/assets/screenshots/04-node-version-invalidated.png)
 
-More console screenshots, captured from a local run on 2026-11-02, are in [`docs/assets/screenshots/`](docs/assets/screenshots/). Local clock times and the time zone have been blanked out; nothing else was changed. They predate the Traffic drawer (2026-11-03): the Inspector's report list is now an overlay opened with the **Traffic** button (or `T`), and the report itself uses the full width.
+More console screenshots, captured from a local run on 2026-11-02, are in [`docs/assets/screenshots/`](docs/assets/screenshots/). Local clock times and the time zone have been blanked out; nothing else was changed. They predate the collapsible sidebar (2026-11-03): navigation and the report list (Traffic) now sit in one sidebar, opened with the menu button (or `T` for Traffic), and the report uses the full width while it is collapsed.
 
 ## ChatGPT extension
 
@@ -239,7 +239,7 @@ The extension holds no provider key. It pairs with the console through a one-tim
 ## Tests
 
 ```bash
-cd engine && npm test && cd ..                                         # 65 engine unit/integration tests (no Docker, no keys)
+cd engine && npm test && cd ..                                         # 75 engine unit/integration tests (no Docker, no keys)
 docker build -f deploy/gateway.Dockerfile --target plugin-test --no-cache-filter plugin-test --progress=plain .
                                                                        # 21 Go plugin tests with -race, plus benchmarks
 node deploy/test/integration.mjs                                       # 13 end-to-end checks against real Bifrost
@@ -266,7 +266,7 @@ This runs the steps of [research/DEMO_SCRIPT.md](research/DEMO_SCRIPT.md) throug
 - **Per answer:** at most 3 claims verified (riskiest first), only above the risk threshold θ = 0.2. Time-invariant claims are never searched.
 - **Reuse:** a verified claim is reused, at 0 credits, until its reuse window ends.
 - **Engine caps:** daily (`HALFLIFE_DAILY_CREDIT_CAP`, default 150) and lifetime (`HALFLIFE_TOTAL_CREDIT_CAP`, default 700) Tavily credits.
-- **Tavily free-allowance guard:** before every paid call the engine reads the account counter through the relay (free) and refuses beyond `HALFLIFE_TAVILY_CEILING_FRACTION` (default 0.8, clamped to 0.95 in code) of the plan allowance, on any pay-as-you-go usage, or when usage cannot be read. Tavily's counter was observed to lag by hours, so the guard also counts every credit it reserves locally.
+- **Tavily account guard:** the engine reads your account's usage and allowance from Tavily's `GET /usage` through the relay (free; cached 5 minutes, within Tavily's 10-reads-per-10-minutes limit). Before every paid call it refuses beyond `HALFLIFE_TAVILY_CEILING_FRACTION` (default 0.8, clamped to 0.95 in code) of the allowance Tavily reports, on any pay-as-you-go usage, or when usage or a finite allowance cannot be read. No allowance is assumed or hardcoded. Credits Tavily's dashboard shows but the API does not report (such as add-on credits) are not counted. Tavily's counter was observed to lag by hours, so the guard also counts every credit it reserves locally. The daily and lifetime caps above are independent of the provider allowance. System → "Tavily account usage" shows the provider's figures, and "Halflife spending limits" shows the engine's own.
 - **Bifrost budget:** a daily dollar budget on the engine's virtual key (`HALFLIFE_ENGINE_BUDGET_USD`, default $2); Bifrost returns 402 when exhausted.
 - **Scripts:** every live script calls `preflight()` / `reconcile()` in `deploy/test/spend-guard.mjs`, which refuses to start a run whose worst case would cross the ceiling and records actual spend in a local ledger.
 

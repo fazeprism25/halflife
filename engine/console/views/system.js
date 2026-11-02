@@ -1,6 +1,6 @@
 // System: integration health, plugin counters, spend against caps, policy. Real values only;
 // anything not configured says so.
-import { ago, api, clear, h, icon, pct } from "../lib.js";
+import { ago, api, clear, h, icon, pct, stamp } from "../lib.js";
 
 export function renderSystem(root) {
   const body = h("div", { class: "pad" });
@@ -52,8 +52,8 @@ export function renderSystem(root) {
       ),
       h("div", { class: "section-label" }, "Spend today"),
       h("div", { class: "panel" },
-        h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline" } }, h("strong", {}, `${spent} of ${cap} Tavily credits`), h("span", { class: "muted mono", style: { fontSize: "12px" } }, s.spend.today.day)),
-        h("div", { class: "meter", role: "meter", "aria-valuemin": "0", "aria-valuemax": String(cap), "aria-valuenow": String(spent) }, h("i", { style: { width: `${Math.min(100, cap ? (spent / cap) * 100 : 0)}%` } })),
+        h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline" } }, h("strong", {}, `${spent} of ${cap} Tavily credits (Halflife daily limit)`), h("span", { class: "muted mono", style: { fontSize: "12px" } }, s.spend.today.day)),
+        h("div", { class: "meter", role: "meter", "aria-label": "Credits used against the daily limit", "aria-valuemin": "0", "aria-valuemax": String(cap), "aria-valuenow": String(spent) }, h("i", { style: { width: `${Math.min(100, cap ? (spent / cap) * 100 : 0)}%` } })),
         h("p", { class: "muted", style: { fontSize: "12.5px", margin: "6px 0 0" } }, `${s.spend.today.searches} searches · ${s.spend.today.extracts} extracts · ${s.spend.today.llm_calls} LLM calls · ${Number(s.spend.today.tokens).toLocaleString()} tokens. The engine stops verifying at its daily cap; Bifrost separately enforces the engine virtual key's dollar budget on the Tavily relay (HTTP 402).`)),
       guardPanel(s.spend),
       h("div", { class: "section-label" }, "Policy"),
@@ -72,28 +72,97 @@ export function renderSystem(root) {
     );
   }
 
-  // The free-allowance guard (AD-19): every paid Tavily call must fit under all three limits.
+  // A (provider account usage) and B/C (Halflife's own limits) are shown apart, never mixed (AD-34).
   function guardPanel(sp) {
     const g = sp.guard;
     if (!g) return null;
-    const acct = g.account;
-    const line = (label, value, note) => h("div", { class: "guard-row" }, h("span", { class: "muted" }, label), h("span", { class: "mono" }, value), note ? h("span", { class: "muted", style: { fontSize: "12px" } }, note) : null);
     return h("div", {},
-      h("div", { class: "section-label" }, "Tavily free-allowance guard"),
-      h("div", { class: "panel" },
-        line("Engine credits, lifetime", `${g.spent_total} of ${g.total_cap ?? "∞"}`, "from the engine's spend ledger"),
-        line("Engine credits, today", `${g.spent_today} of ${g.daily_cap}`),
-        g.account_check !== "on"
-          ? line("Account ceiling", "check off", "HALFLIFE_TAVILY_ACCOUNT_GUARD is disabled; only the engine caps apply")
-          : acct
-            ? line("Account ceiling", `${g.estimated_account_used} of ${g.account_ceiling} used`, `${pct(g.ceiling_fraction)} of the ${acct.planLimit}-credit ${acct.plan ?? ""} plan; the rest is reserved. Counter read ${ago(g.account_checked_at)}, plus ${g.reserved_since_start} credits counted locally since (Tavily's counter lags).`)
-            : line("Account ceiling", `${pct(g.ceiling_fraction)} of plan`, "Tavily's usage counter is read before the next paid call. If it cannot be read, the guard refuses the call."),
-        acct && acct.paygoUsage ? h("p", { class: "error" }, `Pay-as-you-go usage reported (${acct.paygoUsage}): all paid calls are refused.`) : null,
-        g.last_error ? h("p", { class: "error", style: { fontSize: "12px" } }, `Last guard refusal or read error: ${g.last_error}`) : null,
-        h("p", { class: "muted", style: { fontSize: "12.5px", margin: "6px 0 0" } }, "A claim refused by any limit is reported as \"not checked: budget\". It is never retried and never given a verdict.")));
+      h("div", { class: "section-label" }, "Tavily account usage"),
+      usagePanel(g.provider, g.account_check === "on" ? refresh : null, refreshNote),
+      h("div", { class: "section-label" }, "Halflife spending limits"),
+      limitsPanel(g));
+  }
+
+  let refreshing = false;
+  let refreshNote = "";
+  async function refresh() {
+    if (refreshing) return;
+    refreshing = true;
+    try {
+      const r = await api("/v1/usage/refresh", { method: "POST" });
+      refreshNote = r.attempted ? "" : `Not refreshed: ${r.reason}.`;
+    } catch (e) {
+      refreshNote = `Refresh failed: ${e.message}`;
+    } finally {
+      refreshing = false;
+      await load();
+    }
   }
 
   load();
   const t = setInterval(load, 5000);
   return () => clearInterval(t);
+}
+
+const n = (v) => Number(v).toLocaleString();
+const STATE = {
+  ok: ["tone-good", "check", "Current"],
+  stale: ["tone-warning", "alert", "Stale"],
+  unavailable: ["tone-critical", "cross", "Unavailable"],
+  pending: ["tone-neutral", "dot", "Not read yet"],
+  off: ["tone-neutral", "dot", "Check off"],
+};
+const ALLOWANCE_WHY = {
+  missing: "Tavily's usage response did not include an account allowance (plan_limit)",
+  unlimited: "Tavily reports no finite account allowance",
+  invalid: "Tavily returned an account allowance Halflife cannot read",
+};
+const guardLine = (label, value, note) => h("div", { class: "guard-row" }, h("span", { class: "muted" }, label), h("span", { class: "mono" }, value), note ? h("span", { class: "muted", style: { fontSize: "12px" } }, note) : null);
+
+/**
+ * A. Provider account usage, exactly as Tavily's GET /usage reports it (AD-34). It never shows a
+ * maximum or a remaining balance the provider did not report. Exported for the UI test.
+ */
+export function usagePanel(u, onRefresh, note = "") {
+  const [tone, ic, label] = STATE[u?.state] ?? STATE.pending;
+  const head = h("div", { class: "usage-head" },
+    h("span", { class: `badge ${tone}`, "data-usage-state": u?.state ?? "pending" }, icon(ic), label),
+    onRefresh ? h("button", { class: "btn-ghost btn-small", type: "button", onclick: (e) => { e.currentTarget.disabled = true; onRefresh(); } }, "Refresh") : null);
+  if (!u || u.state === "off") {
+    return h("div", { class: "panel usage-panel" }, head, h("p", { class: "muted usage-text" }, "Account usage is not read: HALFLIFE_TAVILY_ACCOUNT_GUARD is disabled or live search is not configured. Only Halflife's own limits apply."));
+  }
+  const has = u.used != null;
+  const finite = has && u.allowance != null;
+  const figure = finite ? `${n(u.used)} of ${n(u.allowance)} credits used` : has ? `${n(u.used)} credits used` : u.state === "unavailable" ? "Usage could not be read" : "Usage not read yet";
+  return h("div", { class: "panel usage-panel" }, head,
+    h("div", { class: "usage-main" }, h("strong", { class: "usage-figure" }, figure), u.plan ? h("span", { class: "muted" }, `${u.plan} plan`) : null),
+    finite ? h("div", { class: "meter", role: "meter", "aria-label": "Tavily account credits used", "aria-valuemin": "0", "aria-valuemax": String(u.allowance), "aria-valuenow": String(u.used) }, h("i", { style: { width: `${Math.min(100, (u.used / u.allowance) * 100)}%` } })) : null,
+    finite ? h("p", { class: "usage-text", "data-remaining": String(u.remaining) }, h("span", { class: "mono" }, n(u.remaining)), " remaining by Tavily's counter",
+      u.remaining_conservative != null && u.remaining_conservative < u.remaining ? h("span", { class: "muted" }, ` · at most ${n(u.remaining_conservative)}, counting credits Halflife spent that the counter does not show yet`) : null) : null,
+    has && !finite ? h("p", { class: "usage-text", "data-allowance": "unavailable" }, `Account allowance unavailable: ${ALLOWANCE_WHY[u.allowance_state] ?? "it was not reported"}. No maximum or remaining balance is shown, and Halflife refuses paid searches until a finite allowance is reported.`) : null,
+    guardLine("Last successful refresh", u.fetched_at ? ago(u.fetched_at) : "never", u.fetched_at ? `${stamp(u.fetched_at)}. Cached ${Math.round(u.cache_ms / 60000)} min; marked stale after ${Math.round(u.stale_after_ms / 60000)} min or a failed read.` : null),
+    u.state === "stale" ? h("p", { class: "usage-text warn-text" }, "These figures are from the last successful read and may be out of date.") : null,
+    u.last_error ? h("p", { class: "error", style: { fontSize: "12px" } }, `Last read failed${u.last_error_at ? ` ${ago(u.last_error_at)}` : ""}: ${u.last_error}`, u.retry_after_until ? `. Tavily asked to wait until ${stamp(u.retry_after_until)}.` : "") : null,
+    u.key ? guardLine("This API key", u.key.limit != null ? `${n(u.key.used)} of ${n(u.key.limit)}` : `${n(u.key.used)} used`, `Key-level counter, separate from the account. Key limit: ${u.key.limit != null ? n(u.key.limit) : u.key.limit_state === "unlimited" ? "none set" : "not reported"}.`) : null,
+    u.paygo ? guardLine("Pay-as-you-go", `${n(u.paygo.used)} used`, u.paygo.used > 0 ? "Pay-as-you-go usage is reported, so Halflife refuses every paid search." : "Halflife never enables it, and refuses paid searches if any is reported.") : null,
+    note ? h("p", { class: "muted", style: { fontSize: "12px" } }, note) : null,
+    h("p", { class: "muted usage-text" }, "Shown exactly as Tavily's /usage API returns it (account.plan_usage and account.plan_limit). Credits the Tavily dashboard shows that this response does not include, such as add-on credits, are not counted. The counter can lag actual requests by hours."),
+  );
+}
+
+/** B, C and the account guard. Operator configuration; the provider allowance never changes B or C. */
+export function limitsPanel(g) {
+  const acct = g.account;
+  const finiteCap = g.total_cap != null && Number.isFinite(g.total_cap);
+  return h("div", { class: "panel limits-panel" },
+    guardLine("Lifetime ceiling", `${n(g.spent_total)} of ${finiteCap ? n(g.total_cap) : "∞"}`, "HALFLIFE_TOTAL_CREDIT_CAP, over the engine's spend ledger. Set by the operator; not derived from the provider allowance."),
+    guardLine("Daily limit", `${n(g.spent_today)} of ${n(g.daily_cap)}`, "HALFLIFE_DAILY_CREDIT_CAP (UTC day). Set by the operator; not derived from the provider allowance."),
+    g.account_check !== "on"
+      ? guardLine("Account guard", "off", "HALFLIFE_TAVILY_ACCOUNT_GUARD is disabled; only the two limits above apply.")
+      : g.account_ceiling != null
+        ? guardLine("Account guard", `${n(g.estimated_account_used)} of ${n(g.account_ceiling)}`, `${pct(g.ceiling_fraction)} of the ${n(acct.planLimit)} credits Tavily reports; the rest is a reserve. Uses Tavily's counter or Halflife's own count, whichever is higher (${g.reserved_since_start} credits counted locally since start).`)
+        : guardLine("Account guard", "refusing", `${pct(g.ceiling_fraction)} of the provider allowance, which is ${acct ? "not reported as a finite number" : "not read yet"}. Paid searches are refused until it is.`),
+    acct && acct.paygoUsage ? h("p", { class: "error" }, `Pay-as-you-go usage reported (${acct.paygoUsage}): all paid calls are refused.`) : null,
+    g.last_error ? h("p", { class: "error", style: { fontSize: "12px" } }, `Last guard refusal or read error: ${g.last_error}`) : null,
+    h("p", { class: "muted", style: { fontSize: "12.5px", margin: "6px 0 0" } }, "Every paid Tavily call must fit under all three. A claim refused by any of them is reported as \"not checked: budget\"; it is never retried and never given a verdict. Halflife never raises these limits or enables pay-as-you-go on its own."));
 }

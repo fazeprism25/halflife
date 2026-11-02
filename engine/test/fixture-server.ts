@@ -5,7 +5,10 @@
 //
 //   node engine/test/fixture-server.ts [--port 8099] [--seed]
 //     --seed   adds TEST FIXTURE extension checks spread over the past days
+//     --usage <limit|none|error>   scripted Tavily /usage reading (AD-34): a TEST FIXTURE account
+//              allowance, no plan_limit at all, or a read that always fails
 import { CacheActions } from "../src/cache.ts";
+import { parseUsage } from "../src/credits.ts";
 import { Bus } from "../src/events.ts";
 import { ExtensionService } from "../src/extension.ts";
 import { Engine } from "../src/pipeline.ts";
@@ -52,12 +55,24 @@ const search = new FakeSearch(() => [
   { url: "https://fixture.example/b", title: "TEST FIXTURE source B", content: "A second TEST FIXTURE source agrees with source A.", score: 0.8, published_date: "2026-09-15" },
 ]);
 
+// Scripted /usage. Must be attached before the Engine is built (it binds search.usage).
+const usageArg = process.argv.includes("--usage") ? process.argv[process.argv.indexOf("--usage") + 1] : null;
+if (usageArg) {
+  (search as any).usage = async () => {
+    if (usageArg === "error") throw new Error("Tavily /usage HTTP 503 (TEST FIXTURE)");
+    const account: Record<string, unknown> = { current_plan: "TEST FIXTURE", plan_usage: 131, paygo_usage: 0, paygo_limit: null };
+    if (usageArg !== "none") account.plan_limit = Number(usageArg);
+    return parseUsage({ key: { usage: 131, limit: null }, account });
+  };
+}
+
 let offset = 0; // lets --seed place checks on earlier days
 const store = new Store(":memory:");
 const bus = new Bus();
 const cfg = testConfig({ consoleToken: "" });
 const engine = new Engine({ cfg, store, llm, search, bus, cache: new CacheActions(store, { bifrostUrl: "http://x", adminToken: "" }), now: () => Date.now() - offset });
 const ext = new ExtensionService(store, engine, () => Date.now() - offset);
+if (usageArg) await engine.credits.refresh(); // as main.ts does at start
 const health: Health = {
   llm: { configured: true, model: "test/fake-llm (fixture)", last_ok_at: Date.now(), last_error: null, last_error_at: null },
   search: { configured: true, last_ok_at: Date.now(), last_error: null, last_error_at: null },

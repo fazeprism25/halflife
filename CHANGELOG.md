@@ -4,6 +4,18 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ## [Unreleased]
 
+### Changed (2026-11-03): collapsible sidebar with Traffic (AD-35)
+- The navigation rail and the Inspector's Traffic drawer are now one sidebar. It is collapsed by default and opened from a menu button in a slim top bar; the page uses the full width while it is collapsed.
+- Desktop (≥ 1100 px): the sidebar docks beside the page and the choice is remembered. Narrower screens: a modal overlay that closes with ✕, Escape, a click outside, a navigation link or choosing a report.
+- Traffic (the latest 100 reports) is a section of the sidebar that expands and collapses on its own, is live on every page, and is opened directly with `T`. The Traffic toolbar above the report is removed; newer/older buttons moved into the report header.
+- The Claim explorer's filter control no longer overflows phone screens.
+
+### Changed (2026-11-03): Tavily account usage from the provider (AD-34)
+- System shows the account's usage and allowance exactly as Tavily's `GET /usage` reports them (`account.plan_usage`, `account.plan_limit`), with remaining credits only when both are valid. It also shows the last successful refresh, Current/Stale/Unavailable states, and the key-level counter separately. A **Refresh** button is limited to one read per 2 minutes.
+- No allowance is assumed. When Tavily does not report a finite allowance, only usage is shown and paid searches are refused.
+- Halflife's lifetime and daily limits are shown separately and never follow the provider allowance.
+- The engine reads `/usage` at start and every 5 minutes, honours `Retry-After`, and retries soon after a failed first read.
+
 ### Changed (2026-11-03): Inspector Traffic drawer (AD-33)
 
 - The Inspector's report list ("Traffic") is no longer a permanent left column. It is an overlay drawer opened from a **Traffic** button in a slim toolbar (or `T`), and closed with its close button, Escape, a click outside it, or by choosing a report. The report and claim detail now use the full workspace width.

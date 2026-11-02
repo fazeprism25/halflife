@@ -155,6 +155,7 @@ Each entry: decision, why, alternatives considered or rejected. Decisions marked
 
 ## AD-19 Tavily free-allowance guard (session 4, 2026-11-02)
 - **Constraint:** Tavily spend must stay at exactly $0. The account is the free **Researcher** plan: 1,000 credits per month, `paygo_limit: null`, and pay-as-you-go usage 0. It is not 8,000 credits as first assumed. These facts come from `GET https://api.tavily.com/usage`, which is free.
+- **Amended by AD-34 (session 12):** the plan figures above were this account's `/usage` reading on 2026-11-02, not defaults. The engine reads the allowance from Tavily for whatever account it runs with. The operator's dashboard later showed 9,000 credits including 8,000 add-on credits, which `/usage` does not report.
 - **Decision:** a hard, application-side ceiling in two layers.
   1. **Engine** (`engine/src/credits.ts`, `CreditGuard`). Before every paid search or extract it checks:
      - the daily cap (150)
@@ -393,3 +394,103 @@ Each entry: decision, why, alternatives considered or rejected. Decisions marked
   - `<dialog>.showModal()` (top-layer rendering makes the slide-in from the workspace edge and the scrim harder to control; `inert` gives the same focus containment)
   - remembering the open state across visits (the list should not reappear permanently)
 - **Tests:** `engine/test/console-ui.test.mjs`, 12 checks in headless Edge/Chrome against the TEST FIXTURE engine. Kept out of `npm test` so the engine suite stays browser-free.
+- **Superseded in part by AD-35 (session 12):** the list moved into the main sidebar, and the toolbar above the report was removed. The newer/older buttons now sit in the report's identity line.
+
+## AD-34 Provider account usage is read from Tavily, never assumed (session 12, 2026-11-03)
+- **Problem:** the System page and the notes treated the account as "1,000 credits per month, 800 ceiling" (AD-19). Halflife should work for any operator and any Tavily plan. The operator also reports that their Tavily dashboard shows **131 / 9,000 credits** (Researcher plan credits plus add-on credits).
+- **Investigation (Tavily docs, 2026-11-03):**
+  - `GET https://api.tavily.com/usage` with the API key as a bearer token. It costs no credits and needs no extra permission (an optional `X-Project-ID` scopes it to a project).
+  - The response has two objects. `key` holds `usage` and `limit` (null means no key limit), plus per-endpoint usage. `account` holds `current_plan`, `plan_usage`, `plan_limit`, `paygo_usage`, `paygo_limit`, plus per-endpoint usage.
+  - The docs do not say whether `plan_limit` includes add-on credits, do not define a null `plan_limit`, and do not state the counter lag.
+  - Rate limit: **10 requests per 10 minutes** for the usage endpoint, separate from the search limits. A 429 may carry `Retry-After` in seconds.
+  - Sources: docs.tavily.com/documentation/api-reference/endpoint/usage and docs.tavily.com/documentation/rate-limits.
+- **Live reading for this account (free calls through the relay, 2026-11-03):**
+  - `account`: `current_plan` "Researcher", `plan_usage` 131, `plan_limit` **1000**, `paygo_usage` 0, `paygo_limit` null
+  - `key`: `usage` 131, `limit` null
+  - So the API does **not** include the operator's add-on credits in `plan_limit`. The 9,000 total is visible only on Tavily's dashboard. Halflife shows what the API returns (131 of 1,000) and says on the page that dashboard-only credits are not counted. It never adds or hardcodes them.
+- **Decision:**
+  - Three concepts, kept apart in code (`engine/src/credits.ts`) and on the System page:
+    - **A, provider account allowance:** Tavily's `account.plan_usage` and `account.plan_limit`. Read, cached and displayed; never a configured default.
+    - **B, lifetime ceiling:** `HALFLIFE_TOTAL_CREDIT_CAP`, default 700.
+    - **C, daily limit:** `HALFLIFE_DAILY_CREDIT_CAP`, default 150.
+    - B and C are operator configuration and are never derived from A. A larger A never lets the engine spend more than B and C allow.
+  - The separate **account guard** (AD-19) stays `floor(A × HALFLIFE_TAVILY_CEILING_FRACTION)`, a share of whatever A Tavily reports. It is shown as its own line, labelled as derived from A.
+  - `parseUsage` classifies each limit as `finite`, `unlimited`, `missing` or `invalid`:
+    - `key.limit` null means unlimited (documented).
+    - `account.plan_limit` null or absent means missing (undocumented, so not assumed unlimited); the string "unlimited" is recognised.
+    - Zero, negative, fractional or non-numeric values are invalid.
+    - A missing `plan_usage` is null, not 0.
+  - Only a `finite` allowance is shown as a maximum or used for "remaining", which is shown only when both numbers are valid. Otherwise the page shows "N credits used" and explains that the allowance is unavailable. The guard keeps failing closed in every non-finite case.
+  - "Remaining" is shown two ways: Tavily's counter (`plan_limit − plan_usage`), and "at most N" counting credits Halflife spent that the lagging counter does not show yet.
+  - Key-level figures are shown as the key's, separately from the account. A key limit binds on its own; it never replaces the account allowance.
+- **Caching and rate limits:**
+  - A good reading is cached for 5 minutes. The engine reads at start, and a 60-second tick re-reads only when the cache has expired: at most 2 of the 10 reads per 10 minutes.
+  - A manual **Refresh** on the System page (`POST /v1/usage/refresh`, console only) is limited to one per 120 seconds.
+  - After a failure the engine waits 120 seconds if it has an earlier reading (the guard keeps counting locally on top of it). With no reading at all it retries after 5 seconds, because the guard refuses every paid call meanwhile. The integration suite caught this case: the engine's first read happens before the gateway is ready. A 429's `Retry-After` is always honoured.
+  - The worst case stays within Tavily's limit, with headroom for the spend-guard scripts.
+- **Freshness states shown:**
+  - `ok`
+  - `stale`: the reading is older than 15 minutes, or the last read failed
+  - `unavailable`: never read successfully
+  - `pending`: not read yet
+  - `off`: the account guard is disabled or there is no live search
+  - The page shows the time of the last successful refresh, the last error, and any Retry-After window.
+- **Lag:** Tavily's counter lagged by minutes to hours on 2026-11-02 (AD-19). The guard still uses max(counter, first reading + local reservations, engine lifetime spend), and the page says the counter can lag.
+- **Unchanged safeguards:**
+  - $0 paid spend.
+  - Any pay-as-you-go usage refuses every paid call.
+  - Reservations are serialised and fail closed.
+  - Halflife never raises B, C or the fraction, and never enables pay-as-you-go.
+  - `deploy/test/spend-guard.mjs` already reads `plan_limit` dynamically; unchanged.
+- **The 8,000 "coupon":**
+  - Per the operator's dashboard, it is Tavily add-on credit (131 / 9,000 = 1,000 plan + 8,000 add-on). It is not DeepSeek balance or another provider's credit; the DeepSeek account has its own dollar balance (AD-19).
+  - It is **not visible through `/usage`**, so Halflife cannot verify it, and the account guard is still computed from the 1,000 the API reports (800 at fraction 0.8).
+  - That is conservative: Halflife will refuse before the plan credits run out, even though add-on credits remain.
+  - Tavily's docs say nothing about whether add-on credits are consumed before or after plan credits, or how their use is reported. Spending past the API-reported plan allowance is deliberately not enabled.
+  - Session 4's note "the assumed 8,000 credits do not exist on this account" was based on `/usage` alone; the dashboard now shows them.
+- **Rejected:**
+  - a configurable "add-on credits" number: it would be an operator-typed allowance that the guard cannot verify
+  - scraping the dashboard: no API, and it would need the account login
+  - raising any ceiling to use the larger dashboard total
+  - polling `/usage` from the console's 5-second status refresh
+
+## AD-35 One collapsible sidebar holds the navigation and Traffic (session 12, 2026-11-03)
+- **Decision:**
+  - The permanent left navigation rail and the Inspector's Traffic drawer (AD-33) become **one sidebar**, collapsed by default and opened with a menu button in a slim top bar. The top bar holds the menu button, the brand and the live indicator.
+  - Traffic, the latest 100 reports, is a disclosure section inside the sidebar, under the navigation. The separate Traffic toolbar above the report is gone. All eight navigation destinations are unchanged.
+- **Two modes, by width:**
+  - **Docked (≥ 1100 px):**
+    - a 300 px column beside the page; opening it narrows the page
+    - non-modal: no Escape or outside-click dismissal, and choosing a report keeps it open
+    - the open or closed choice is remembered (`halflife.sidebar` in localStorage)
+  - **Overlay (< 1100 px):**
+    - a modal panel at most 300 px wide (`role="dialog"`, `aria-modal`); the top bar and page are `inert` and page scroll is locked
+    - closes with ✕, Escape, a click outside, a navigation link or choosing a report; focus returns to the menu button
+    - always starts closed, whatever the desktop preference
+  - Crossing the breakpoint restores the remembered docked choice, or closes the overlay.
+- **Traffic:**
+  - Expands and collapses independently of the sidebar; remembered as `halflife.traffic`, collapsed by default.
+  - Expanded, it takes the sidebar's remaining height and scrolls. It never widens the sidebar, so it never reduces the report's width beyond the sidebar's own width, and only while the sidebar is docked open.
+  - It is one shared list for the whole console (`engine/console/traffic.js`), loaded at start and reloaded on any engine event (debounced 250 ms), so it is live on every page. The 100-report window is unchanged.
+  - Choosing a report on the Inspector selects it in place (registered handler, no re-render). From another page it opens `#/inspector/<id>`.
+  - Arrow keys, Home and End move between reports. **T** opens the sidebar on Traffic with focus on the selected report, on any page.
+  - The new-report mark shows on the Traffic header and on the menu button while the sidebar is closed, with screen-reader text. It clears once Traffic is on screen.
+  - The Inspector keeps the position ("n of latest 100") and newer/older buttons in the report's identity line.
+- **Why not keep AD-33's drawer:** the operator wanted the navigation itself collapsible and Traffic inside it, as one sidebar rather than two competing drawers. The docked mode is an operator-chosen persistent preference, which AD-33 had rejected for the drawer; it is off by default.
+- **Also fixed:**
+  - the Claim explorer's filter control overflowed a 390 px screen (427 px); it now wraps
+  - narrow layouts reserve the scrollbar gutter, so locking scroll for the overlay does not shift the page
+- **Implementation:** vanilla JS and CSS, no dependency (`index.html`, `app.js`, new `traffic.js`, `views/inspector.js`, `styles.css`). Transitions are 200 ms and none under `prefers-reduced-motion`. A closed sidebar is `visibility: hidden`, so it leaves the tab order and the accessibility tree.
+- **Tests:** `engine/test/console-ui.test.mjs`, rewritten, 13 checks:
+  - desktop collapsed and full width
+  - docking, the remembered choice and the non-modal behaviour
+  - Traffic expanded and collapsed independently, without changing widths
+  - selection in place
+  - newer/older
+  - keyboard (T, arrows, Home, Enter, visible focus)
+  - live update and new-report marks
+  - tablet overlay (modal, Escape, outside click, selection, navigation link)
+  - phone: no horizontal scroll on all 8 pages, and overlay geometry
+  - selection from another page
+  - themes
+  - System provider usage, and the usage panel's other allowances, unknown, stale and unavailable states

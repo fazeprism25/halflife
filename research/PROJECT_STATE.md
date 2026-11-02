@@ -1,6 +1,31 @@
 # Halflife: Project State
 
-_Last updated: 2026-11-03 (session 11: Inspector Traffic drawer, real-chatgpt.com result, push). The persistent source of truth: a fresh session reads this file, then `NEXT_SESSION.md`._
+_Last updated: 2026-11-03 (session 12: collapsible sidebar with Traffic, provider account usage). The persistent source of truth: a fresh session reads this file, then `NEXT_SESSION.md`._
+
+## Session 12: collapsible sidebar with Traffic (AD-35), provider account usage (AD-34)
+
+- **Sidebar (AD-35):**
+  - The navigation rail and the Inspector's Traffic drawer are now **one sidebar**, collapsed by default, opened from a menu button in a slim top bar (menu, brand, live indicator).
+  - Desktop (≥ 1100 px): it docks beside the page, non-modal, and the open/closed choice is remembered. Below 1100 px: a modal overlay that closes with ✕, Escape, outside click, a nav link or choosing a report, and always starts closed.
+  - **Traffic** is a section of the sidebar that expands and collapses on its own (remembered, collapsed by default). It is live on every page and keeps the 100-report window; `T` opens it with focus on the selected report.
+  - The Traffic toolbar above the report is gone; newer/older and "n of N" moved into the report header.
+  - New-report marks show on the Traffic header and on the menu button.
+  - Files: `engine/console/{index.html,app.js,traffic.js (new),views/inspector.js,styles.css}`.
+  - Also fixed: the Claim explorer's filter control overflowed at 390 px.
+- **Tavily account usage (AD-34):**
+  - The engine reads `GET /usage` (free) at start and every 5 minutes, and on a rate-limited manual **Refresh** (`POST /v1/usage/refresh`, one per 120 s). It honours `Retry-After` and stays within Tavily's 10 reads per 10 minutes.
+  - System shows `account.plan_usage` of `account.plan_limit` exactly as reported, remaining only when both are valid, the last successful refresh and a Current/Stale/Unavailable state. The key-level counter is shown separately. When no finite allowance is reported, it shows usage only, explains why, and the guard refuses paid calls.
+  - Halflife's lifetime ceiling (700) and daily limit (150) are shown separately and are never derived from the provider allowance. The account guard stays 80% of the reported allowance. Nothing is hardcoded; $0 and pay-as-you-go refusal are unchanged.
+  - **Live finding (2026-11-03):** Tavily's `/usage` for this account reports Researcher, `plan_usage` 131, `plan_limit` **1000**, paygo 0. The operator's dashboard shows 131 / **9,000** (1,000 plan + 8,000 add-on credits). The API does not report the add-on credits, so Halflife shows 131 of 1,000 and says dashboard-only credits are not counted. The account guard stays at 800.
+  - **The 8,000 coupon** is Tavily add-on credit per the operator's dashboard, not DeepSeek or another provider's. Halflife cannot see it and does not spend against it.
+- **Tests (final code, this session):**
+  - engine **75/75** (10 new credit-guard tests, including different allowances, unknown/unlimited/invalid, stale, Retry-After and manual throttle, key vs account, and a regression for a failed first read)
+  - console UI **13/13** (rewritten for AD-35, plus the System usage states)
+  - extension 14/14
+  - **integration 13/13** on a rebuilt engine image. The first run failed 5/13: a regression where a failed startup `/usage` read blocked paid calls for 120 s. Fixed and re-run.
+  - Go plugin not re-run (no plugin change).
+- **Running stack:** the engine image was rebuilt and the stack restarted with this code (console included). Live reading after restart: state ok, 131 of 1,000 reported.
+- **Git:** one new commit on top of `d2349a3` with UTC timestamps, pushed to `origin/main` with operator authorisation (see `NEXT_SESSION.md`). Nothing amended, deployed or submitted.
 
 ## Session 11: Traffic drawer (AD-33), real-browser result, pushed
 
@@ -79,7 +104,7 @@ Halflife is a freshness intelligence layer for LLM applications. Its premise: ev
 | Console | **Done, audited with real data (session 5):** 7 correctness fixes (AD-27): weak-evidence labels, honest headlines, no fake invalidations for no-store, timestamps with zone, reused counts, guard panel | headless Edge screenshots; `deploy/demo/backup/` |
 | Deployment | **Done:** `setup.mjs` plus compose; config rendered from the keys present | integration suite builds from scratch |
 | Hosted LLM: **DeepSeek via Bifrost's native provider** | **Live-verified** (AD-17). Judge `deepseek/deepseek-flash`, thinking off | `live-deepseek.json` 6/6; about 3.5k tokens per checked claim |
-| **Tavily free-allowance guard** | **Done** (AD-19): engine `CreditGuard` plus script `spend-guard.mjs`; ceiling 800 of 1000, 200 reserved | 10 unit tests; ledger `deploy/test/results/spend-ledger.jsonl` |
+| **Tavily account guard** | **Done** (AD-19, AD-34): engine `CreditGuard` plus script `spend-guard.mjs`; 80% of the allowance Tavily's `/usage` reports (800 of the 1,000 it reports for this account on 2026-11-03), read live and never hardcoded; lifetime and daily caps independent | 21 unit tests; ledger `deploy/test/results/spend-ledger.jsonl` |
 | ChatGPT extension (AD-32) | **Done; works on real chatgpt.com** (operator-tested, session 11) | 11 engine + 8 adapter + 6 e2e tests (session 10, re-run session 11) |
 | Inspector Traffic drawer (AD-33) | **Done** (session 11) | 12 console UI checks in headless Edge; screenshots at 1440/820/390 px, light and dark |
 | Tests | **65 engine, 21 plugin (`-race`), 13 integration, 14 extension, 12 console UI: all pass** (engine, extension and console UI re-run in session 11; integration in session 10; plugin in session 5, unchanged since) | `deploy/test/results/integration.json`, `plugin-test-2026-11-02.log` |
@@ -113,7 +138,7 @@ Halflife is a freshness intelligence layer for LLM applications. Its premise: ev
 - **v2, 15 hard items:** found AD-20 and AD-21, both fixed.
 
 **Spend**
-- **Tavily:** 129 of 1000 credits. That is 128 by the engine (62 in session 4, about 66 in session 5) plus 1 direct call. Ceiling 800; pay-as-you-go 0.
+- **Tavily:** 129 of 1000 credits (Tavily's `/usage` reading on 2026-11-02; 131 on 2026-11-03, when the dashboard showed 9,000 including 8,000 add-on credits that `/usage` does not report, AD-34). That is 128 by the engine (62 in session 4, about 66 in session 5) plus 1 direct call. Ceiling 800; pay-as-you-go 0.
   - Tavily's own counter read 0–3 all day: it lags hours, not minutes.
 - **DeepSeek:** balance $5.89 → $5.82, so about $0.07 actual. Dev budget $1.
 

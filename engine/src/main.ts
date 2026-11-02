@@ -108,6 +108,12 @@ setInterval(() => {
   ext.sweep(); // extension checks have their own, user-set retention (AD-32)
 }, 3600_000).unref();
 
+// Provider account usage (AD-34): one free /usage read at start, then whenever the cached reading
+// is older than its 5-minute window. That is at most 2 of Tavily's 10 reads per 10 minutes,
+// leaving room for manual refreshes and the spend-guard scripts.
+void engine.credits.refresh();
+setInterval(() => void engine.credits.refresh(), 60_000).unref();
+
 const server = createServer({ cfg, engine, store, health, ext });
 server.listen(cfg.port, cfg.host, () => {
   console.log(`[engine] halflife ${VERSION} listening on ${cfg.host}:${cfg.port}`);

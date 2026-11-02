@@ -6,10 +6,10 @@ _Written 2026-11-02 (session 5). Every fact shown below was checked independentl
 
 1. `docker compose -f deploy/docker-compose.yml up -d` (no rebuild). Wait for both containers to be `healthy` (`docker ps`).
 2. Open the console at http://localhost:8090. Open **System**: Bifrost reachable, plugin "Reporting", judge and Tavily "Working".
-3. Spend check: System → "Tavily free-allowance guard". Engine credits must leave room for at least 20 credits today (the daily cap is 150).
+3. Spend check: System → "Tavily account usage" (as Tavily reports it) and "Halflife spending limits". Engine credits must leave room for at least 20 credits today (the daily cap is 150).
 4. **Optional, to show fresh Tavily calls on stage instead of reused verifications:** verifications are reused for their reuse window (T0, 0 credits). If the prompts below were run within the last few days, expect "reused verification, 0 credits". That is correct behaviour and worth saying out loud. For a guaranteed live search, use the ad-lib prompt in step 2b.
 5. Rehearse with `node deploy/demo/run-demo.mjs`. It runs every step below through the real stack and writes a transcript to `deploy/demo/results/`.
-6. Final-demo spend only: if the 800-credit development ceiling is close, set `HALFLIFE_TAVILY_CEILING_FRACTION=0.95` in `deploy/.env` and restart the engine (AD-19). Never enable Tavily pay-as-you-go.
+6. Final-demo spend only: if the account guard (80% of the allowance Tavily reports; 800 of 1,000 on 2026-11-03) is close, set `HALFLIFE_TAVILY_CEILING_FRACTION=0.95` in `deploy/.env` and restart the engine (AD-19). Never enable Tavily pay-as-you-go.
 
 ## Script
 

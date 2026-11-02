@@ -207,6 +207,12 @@ export function createServer(d: ServerDeps): http.Server {
     if (who !== "console") return send(res, 404, { error: "not found" });
     if (p === "/v1/events" && m === "GET") return events(req, res);
     if (p === "/v1/playground" && m === "POST") return playground(await readJSON(req), res);
+    if (p === "/v1/usage/refresh" && m === "POST") {
+      // Free call (no credits). Rate-limited by the guard: one manual read per manual_min_ms, and
+      // never inside a Tavily Retry-After window.
+      const r = await engine.credits.refresh({ manual: true });
+      return send(res, 200, { ...r, provider: engine.credits.providerUsage() });
+    }
     if (p.startsWith("/v1/extension/") && (await extensionConsoleRoute(ext, req, res, p, m, url, send, readJSON))) return;
     return send(res, 404, { error: "not found" });
   };

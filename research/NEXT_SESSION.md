@@ -1,6 +1,38 @@
 # Next Session
 
-_Read `PROJECT_STATE.md` first, then this file. Updated in session 11 (2026-11-03): Inspector Traffic drawer, real-chatgpt.com result, push._
+_Read `PROJECT_STATE.md` first, then this file. Updated in session 12 (2026-11-03): collapsible sidebar with Traffic (AD-35), provider account usage (AD-34), push._
+
+## Session 12 summary
+- **Sidebar (AD-35):**
+  - Navigation and Traffic are one sidebar, collapsed by default, opened from the top bar's menu button.
+  - Docked and remembered at ≥ 1100 px; a modal overlay below that.
+  - Traffic is its own collapsible section, live on every page; `T` opens it.
+  - The Traffic toolbar above the report is gone; newer/older moved into the report header.
+- **Tavily account usage (AD-34):**
+  - System shows Tavily's own `account.plan_usage` / `account.plan_limit` with states, the last refresh, a throttled Refresh, and the key-level counter apart.
+  - Halflife's lifetime (700) and daily (150) limits are shown separately and never follow the provider value. No allowance is hardcoded.
+  - **Finding:** `/usage` reports `plan_limit` 1000 for this account, while the operator's dashboard shows 9,000 (8,000 add-on credits). The API does not expose add-ons, so the console shows 131 of 1,000, and the account guard stays at 800.
+- **Tests:**
+  - engine 75/75
+  - console UI 13/13
+  - extension 14/14
+  - integration 13/13: the first run found a startup regression, which was fixed
+  - Go plugin not re-run
+- **Running stack:** rebuilt engine image, restarted; it serves the new console. The live reading is ok.
+- **Git:** session 12 commit on top of `d2349a3`, UTC timestamps, pushed to `origin/main` with operator authorisation. Check with `git log --oneline origin/main -3`.
+
+## Exact next actions (session 13)
+1. **Operator:** look at the new sidebar and System page on the running stack (http://localhost:8090). Desktop docks and remembers; narrow windows get the overlay.
+2. **Optional, Tavily add-on credits:** if the operator wants Halflife to spend add-on credits, first confirm with Tavily how they are consumed and reported (before or after plan credits; whether they ever appear in `/usage` or as `paygo_usage`). Until then the guard stops at 80% of the API-reported allowance (800). Never raise limits automatically; any change needs an explicit operator decision and an AD entry.
+3. **Optional:** re-take the sanitised screenshots in `docs/assets/screenshots/` (they predate the drawer and the sidebar; blank clock times and the zone again). Add the extension and the sidebar to `research/DEMO_SCRIPT.md`.
+4. **Then the operator queue:** demo video, official problem wording, submission (by 2026-11-15, only with explicit authorisation).
+5. **Committing:** UTC timestamps (`GIT_AUTHOR_DATE="$(date -u +%s) +0000" GIT_COMMITTER_DATE="$(date -u +%s) +0000" git commit …`); secret scan on `git ls-files` before every push; push only with operator authorisation.
+
+## Known limitations (session 12)
+- Add-on credits are invisible to `/usage`; the console notes this, and Halflife does not count or spend them.
+- The engine polls `/usage` every 5 minutes while running (free; 2 of 10 allowed reads per 10 minutes). The spend-guard scripts share the same per-key limit; a 429 is handled by backing off.
+- Docked mode narrows the page while open (by design, opt-in). Traffic never widens the sidebar.
+- The UI test covers Edge/Chrome only; no Firefox or Safari run.
 
 ## Session 11 summary
 - **Inspector Traffic drawer (AD-33):** the permanent report column became an overlay drawer: a toolbar toggle or `T`; ✕, Escape, outside click or choosing a report closes it. The toolbar also has newer/older buttons and a new-report dot. Vanilla JS and CSS; no dependency.
@@ -8,7 +40,7 @@ _Read `PROJECT_STATE.md` first, then this file. Updated in session 11 (2026-11-0
 - **Tests:** engine 65/65, extension 14/14, console UI 12/12 (new `engine/test/console-ui.test.mjs`), import check clean. Integration and plugin were not re-run (no server, plugin or deploy code changed).
 - **Git:** the session 11 commit on top of `62e6de5`. All three (`566f561`, `62e6de5`, session 11) were pushed to `origin/main` with operator authorisation; check with `git status` (should be up to date).
 
-## Exact next actions (session 12)
+## Next actions as written in session 11 (item 1 done in session 12: the stack was rebuilt)
 1. **Refresh the running stack's console** (it still serves the session 10 console): `docker cp engine/console/. halflife-engine-1:/app/engine/console/` (from PowerShell), or rebuild the engine image only. Mind the disk.
 2. **Optional:** add the extension and the drawer to `research/DEMO_SCRIPT.md` (one live check costs at most 3 Tavily credits); re-take the sanitised screenshots in `docs/assets/screenshots/` (they predate the drawer; blank clock times and the zone again).
 3. **Optional:** re-run the §5 checklist items not reported one by one (themes, pause/engine stopped, Chrome Local Network Access), after any ChatGPT redesign; Firefox support; an e2e case for `data-is-streaming`.
@@ -79,6 +111,7 @@ The product is feature-complete and verified with real services:
 Quality gate passed: 54 engine tests, 21 Go tests with `-race`, 13 integration checks, a clean setup from a copied tree, and 0 secrets in files. **Published on GitHub (<https://github.com/fazeprism25/halflife>); nothing has been submitted or deployed.**
 
 ## Spending (absolute; AD-19)
+- **Tavily (2026-11-03): 131 used; `/usage` reports a 1,000 allowance** (the dashboard shows 9,000 incl. 8,000 add-on credits that the API does not report; AD-34). Engine lifetime spend 130. The figures below are from 2026-11-02.
 - **Tavily: 129 of 1000 credits used** (engine 128 + 1 direct). The ceiling is 800 and the 200-credit reserve is untouched. Pay-as-you-go 0. **Tavily stays at $0.**
   - The engine's **daily cap is 150 and 128 were used on 2026-11-02**, so the cap resets the next day.
 - **DeepSeek:** about $0.07 actual of the $1 dev budget (balance $5.82). Never top up.

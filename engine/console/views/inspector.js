@@ -1,148 +1,59 @@
-// Inspector: live report feed, the answer with claims highlighted in place, and a claim panel
+// Inspector: the selected report, the answer with claims highlighted in place, and a claim panel
 // that keeps the three measurements separate: A lifespan, B P(outdated), C evidence confidence.
 import {
-  ago, api, claimState, clear, copyButton, date, fmtDuration, h, icon, levelMeter, pct, pctRange, plural,
+  ago, api, claimState, clear, copyButton, date, fmtDuration, h, icon, levelMeter, pct, pctRange,
   probabilityBar, stamp, stateBadge, time, tooltip,
 } from "../lib.js";
+import { summaryBadge } from "../traffic.js";
 
 const STAGES = { extract: "Extracting claims", assess: "Estimating freshness", verify: "Verifying against live sources" };
 
-export function renderInspector(root, { params, onEngineEvent }) {
-  let reports = [];
+export function renderInspector(root, { params, onEngineEvent, inspector }) {
+  // The report list ("Traffic") lives in the main sidebar (AD-35); this view reads the same list
+  // for its default selection and the newer/older buttons, and registers itself so choosing a
+  // report in the sidebar selects it here without a re-render of the whole page.
+  const traffic = inspector.traffic;
+  let reports = traffic.reports;
   let selectedId = params[0] ?? null;
   let selectedClaim = null;
   let current = null;
   let disposed = false;
 
-  // ---- Traffic drawer: an overlay over the workspace, closed by default (not a permanent column).
-  // Open: the rest of the console is inert, so focus stays in the drawer. Close: button, Escape,
-  // or a click on the scrim; focus returns to the toggle.
-  let drawerOpen = false;
-  let listLoaded = false;
-  let seenTopId = null;
-  const feedList = h("div", { class: "feed-list", role: "list", onkeydown: onFeedKey });
-  const feedCount = h("span", { class: "muted mono", style: { fontSize: "11px" } });
   const detail = h("section", { class: "detail", "aria-live": "polite" });
-  const toggleCount = h("span", { class: "drawer-toggle-count" });
-  const newNote = h("span", { class: "sr-only" });
-  const toggle = h("button", { class: "btn-ghost drawer-toggle", type: "button", "aria-expanded": "false", "aria-controls": "traffic-drawer", "aria-keyshortcuts": "t", title: "Show traffic (T)", onclick: () => setDrawer(!drawerOpen) },
-    icon("panel"), h("span", {}, "Traffic"), toggleCount, h("span", { class: "new-dot", "aria-hidden": "true" }), newNote);
   const position = h("span", { class: "bar-position mono muted" });
   const newer = h("button", { class: "btn-ghost btn-small", type: "button", "aria-label": "Newer report", title: "Newer report", onclick: () => step(-1) }, icon("chevron-up"));
   const older = h("button", { class: "btn-ghost btn-small", type: "button", "aria-label": "Older report", title: "Older report", onclick: () => step(1) }, icon("chevron-down"));
-  const bar = h("div", { class: "inspector-bar" }, toggle, h("span", { class: "bar-nav" }, position, newer, older));
-  const drawer = h("aside", { class: "feed drawer", id: "traffic-drawer", role: "dialog", "aria-modal": "true", "aria-labelledby": "traffic-title", "data-open": "false" },
-    h("div", { class: "feed-head" },
-      h("strong", { id: "traffic-title", style: { fontSize: "13px" } }, "Traffic"),
-      h("span", { class: "feed-head-end" }, feedCount,
-        h("button", { class: "icon-btn", type: "button", "aria-label": "Close traffic", title: "Close (Esc)", onclick: () => setDrawer(false) }, icon("cross")))),
-    feedList);
-  const scrim = h("div", { class: "drawer-scrim", "data-open": "false", "aria-hidden": "true", onclick: () => setDrawer(false) });
-  root.append(h("div", { class: "inspector" }, bar, detail, scrim, drawer));
+  const reportNav = h("span", { class: "report-nav" }, position, newer, older);
+  root.append(h("div", { class: "inspector" }, detail));
 
-  const rail = document.querySelector(".rail");
-  function setDrawer(open) {
-    if (open === drawerOpen) return;
-    drawerOpen = open;
-    drawer.dataset.open = scrim.dataset.open = String(open);
-    toggle.setAttribute("aria-expanded", String(open));
-    for (const el of [bar, detail, rail]) el?.toggleAttribute("inert", open);
-    document.documentElement.classList.toggle("drawer-open", open);
-    if (open) {
-      tip.hide();
-      seenTopId = reports[0]?.id ?? null;
-      updateBar();
-      const target = feedList.querySelector('.feed-item[aria-current="true"]') ?? feedList.querySelector(".feed-item") ?? drawer.querySelector(".icon-btn");
-      target.focus();
-      target.scrollIntoView?.({ block: "nearest" });
-    } else {
-      toggle.focus();
-    }
-  }
-  function onDocKey(e) {
-    if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
-    if (e.key === "Escape" && drawerOpen) {
-      e.preventDefault();
-      setDrawer(false);
-    } else if ((e.key === "t" || e.key === "T") && !drawerOpen && !e.target.closest?.("input, textarea, select, [contenteditable]")) {
-      e.preventDefault();
-      setDrawer(true);
-    }
-  }
-  document.addEventListener("keydown", onDocKey);
-  function onFeedKey(e) {
-    const items = [...feedList.querySelectorAll(".feed-item")];
-    const i = items.indexOf(document.activeElement);
-    const to = { ArrowDown: i + 1, ArrowUp: i - 1, Home: 0, End: items.length - 1 }[e.key];
-    if (to === undefined || !items.length) return;
-    e.preventDefault();
-    items[Math.max(0, Math.min(items.length - 1, to))].focus();
-  }
   function step(delta) {
     const i = reports.findIndex((r) => r.id === selectedId);
     const next = reports[i + delta];
     if (i >= 0 && next) select(next.id);
   }
-  function updateBar() {
+  function updateNav() {
     const n = reports.length;
     const i = reports.findIndex((r) => r.id === selectedId);
-    toggleCount.textContent = n ? (n >= 100 ? "100" : String(n)) : "";
-    const fresh = !drawerOpen && listLoaded && reports[0] && reports[0].id !== seenTopId;
-    toggle.dataset.new = String(Boolean(fresh));
-    newNote.textContent = fresh ? ", new reports" : "";
     position.textContent = i >= 0 ? `${i + 1} of ${n >= 100 ? "latest 100" : n}` : "";
     newer.disabled = !(i > 0);
     older.disabled = !(i >= 0 && i < n - 1);
   }
 
-  async function loadList() {
-    try {
-      const r = await api("/v1/reports?limit=100");
-      if (disposed) return;
-      reports = r.reports;
-      if (!listLoaded) seenTopId = reports[0]?.id ?? null;
-      listLoaded = true;
-      renderFeed();
-      updateBar();
-      if (!selectedId && reports[0]) select(reports[0].id, false);
-      if (!reports.length) renderEmpty();
-    } catch (e) {
-      if (e.status !== 401) clear(feedList).append(h("div", { class: "feed-empty error" }, `Could not load reports: ${e.message}`));
-    }
-  }
-
-  function renderFeed() {
-    feedCount.textContent = reports.length ? (reports.length >= 100 ? "latest 100" : plural(reports.length, "report")) : "";
-    clear(feedList);
-    if (!reports.length) {
-      feedList.append(h("div", { class: "feed-empty" }, "No traffic yet. Answers that pass through the gateway appear here as they arrive."));
-      return;
-    }
-    for (const r of reports) feedList.append(feedItem(r));
-  }
-
-  function feedItem(r) {
-    const s = r.summary;
-    const risk = r.max_p ?? 0;
-    let headline;
-    if (r.status === "linked") headline = [icon("link"), "Cache hit · analysis reused"];
-    else if (r.status === "failed") headline = [h("span", { class: "badge tone-critical" }, icon("cross"), "Analysis failed")];
-    else if (r.status !== "done") headline = [h("span", { class: "muted" }, STAGES[r.stage] ?? "Queued", "…")];
-    else headline = [summaryBadge(s), h("span", {}, s?.headline ?? "")];
-    return h("button", { class: "feed-item", role: "listitem", "aria-current": String(r.id === selectedId), onclick: () => { select(r.id); setDrawer(false); } },
-      h("span", { class: "meta" }, h("span", { class: "mono", title: stamp(r.created_at) }, sameDay(r.created_at) ? time(r.created_at) : `${localDay(r.created_at)} ${time(r.created_at)}`), h("span", { class: "tag" }, r.source), r.model ? h("span", {}, r.model) : null, r.cache_hit ? h("span", { class: "tag" }, "hit") : null),
-      h("span", { class: "risk-tick", title: `Highest P(outdated) among its claims: ${pct(risk)}` }, h("i", { style: { width: `${Math.round(risk * 100)}%` } })),
-      h("span", { class: "preview" }, r.preview ?? ""),
-      h("span", { class: "headline" }, headline),
-    );
-  }
+  const offList = traffic.onChange((list) => {
+    if (disposed) return;
+    reports = list;
+    updateNav();
+    if (!selectedId && reports[0]) select(reports[0].id, false);
+    else if (!reports.length && !selectedId) renderEmpty();
+  });
+  const offRegister = inspector.register((id) => select(id));
 
   async function select(id, push = true) {
     selectedId = id;
     selectedClaim = null;
     if (push) history.replaceState(null, "", `#/inspector/${id}`);
-    updateBar();
-    for (const el of feedList.children) el.setAttribute("aria-current", String(el === feedList.children[reports.findIndex((r) => r.id === id)]));
+    traffic.setSelected(id);
+    updateNav();
     await loadDetail();
   }
 
@@ -188,7 +99,7 @@ export function renderInspector(root, { params, onEngineEvent }) {
         h("span", { class: "mono" }, r.id), copyButton(r.id, "Copy ID"),
         h("span", {}, stamp(r.created_at)),
         h("span", { class: "tag" }, r.source), r.model ? h("span", { class: "tag" }, r.model) : null,
-        r.stream ? h("span", { class: "tag" }, "stream") : null, h("span", { class: "tag" }, `mode ${r.mode}`)),
+        r.stream ? h("span", { class: "tag" }, "stream") : null, h("span", { class: "tag" }, `mode ${r.mode}`), reportNav),
     );
     const s = a.summary;
     if (a.status === "done") {
@@ -406,24 +317,23 @@ export function renderInspector(root, { params, onEngineEvent }) {
   }
 
   // ---------------------------------------------------------------- live updates
+  // Traffic (sidebar) reloads the list on every event; this view reloads only the open report.
   let pending = null;
   const off = onEngineEvent((e) => {
     if (e.type === "status") return;
+    const rid = e.type === "report" ? e.id : e.report_id;
+    if (rid !== selectedId && rid !== current?.r?.linked_report_id) return;
     clearTimeout(pending);
-    pending = setTimeout(() => {
-      loadList();
-      const rid = e.type === "report" ? e.id : e.report_id;
-      if (rid === selectedId || rid === current?.r?.linked_report_id) loadDetail();
-    }, 250);
+    pending = setTimeout(loadDetail, 250);
   });
 
-  loadList().then(() => selectedId && loadDetail());
+  if (selectedId) select(selectedId, false);
+  else if (traffic.loaded && !reports.length) renderEmpty();
   return () => {
     disposed = true;
     off();
-    document.removeEventListener("keydown", onDocKey);
-    rail?.removeAttribute("inert");
-    document.documentElement.classList.remove("drawer-open");
+    offList();
+    offRegister();
     tip.hide();
     clearTimeout(pending);
   };
@@ -432,17 +342,6 @@ export function renderInspector(root, { params, onEngineEvent }) {
 function defaultClaim(claims) {
   const rank = (c) => (c.verdict === "superseded" || c.verdict === "contradicted" ? 3 : !c.verdict && c.time_sensitive && c.triage !== "low_risk" ? 2 : c.time_sensitive ? 1 : 0);
   return [...claims].sort((a, b) => rank(b) - rank(a) || b.p_outdated.hi - a.p_outdated.hi)[0];
-}
-
-function summaryBadge(s) {
-  if (!s) return null;
-  if (s.stale > 0) return h("span", { class: "badge tone-critical" }, icon("replace"), "Outdated");
-  if (s.possibly_stale > 0) return h("span", { class: "badge tone-warning" }, icon("replace"), "Possibly outdated");
-  if (s.at_risk > s.checked) return h("span", { class: "badge tone-warning" }, icon("alert"), "At risk");
-  if (s.checked > 0 && s.verdicts.current === s.checked) return s.weak_current ? h("span", { class: "badge tone-neutral" }, icon("check"), "Likely current") : h("span", { class: "badge tone-good" }, icon("check"), "Current");
-  if (s.time_sensitive === 0) return h("span", { class: "badge tone-neutral" }, icon("dot"), "Static");
-  if (s.checked > 0 && s.verdicts.unverifiable === s.checked) return h("span", { class: "badge tone-neutral" }, icon("question"), "Unverifiable");
-  return h("span", { class: "badge tone-neutral" }, icon("question"), "Mixed");
 }
 
 function figures(a, s) {
@@ -462,8 +361,6 @@ function triageText(c, a) {
   }
 }
 
-const localDay = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
-const sameDay = (ms) => localDay(ms) === localDay(Date.now());
 const omittedValue = (c) => (c.level_reasons ?? []).some((x) => /omitted: no verified quote states it/.test(x));
 function weakVerdictNote(c) {
   if ((c.verdict !== "superseded" && c.verdict !== "contradicted") || ["moderate", "strong"].includes(c.evidence_level)) return null;

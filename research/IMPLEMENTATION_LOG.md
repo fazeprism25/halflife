@@ -4,6 +4,52 @@ Newest first. Every entry records what was done, the files touched, the tests ru
 
 ---
 
+## 2026-11-03, session 12 (collapsible sidebar with Traffic, AD-35; provider account usage, AD-34)
+
+- **Operator requests:**
+  - make the main sidebar collapsible and move Traffic into it
+  - read the Tavily allowance from the provider instead of assuming 1,000 / 800
+  - keep the lifetime and daily limits separate from the provider allowance
+  - investigate the 8,000 coupon
+  - Mid-session correction: the dashboard shows 131 / 9,000 (plan + add-on credits); use `account.plan_usage` and `account.plan_limit`; hardcode no allowance.
+- **Investigation:**
+  - Tavily docs: `/usage` schema (key and account objects), 10 reads per 10 minutes, 429 with `Retry-After`, no statement on add-ons or lag.
+  - One live free read through the relay before any change: Researcher, `plan_usage` 131, `plan_limit` 1000, `paygo_usage` 0, `paygo_limit` null; key `usage` 131, `limit` null.
+  - Conclusion: the API does not report the 8,000 add-on credits (AD-34).
+- **Engine (AD-34):**
+  - `src/credits.ts`:
+    - `AccountUsage` gains `planLimitState` and `keyLimitState` (`finite` / `unlimited` / `missing` / `invalid`); `planUsage` can be null
+    - `parseUsage` classifies limits instead of coercing them
+    - `CreditGuard.refresh({manual})`: single-flight; 5-minute cache; 120 s failure backoff with an earlier reading, 5 s without; `Retry-After` honoured; manual reads one per 120 s
+    - `usageState()` and `providerUsage()`; `status().provider`
+    - `reserveNow` uses `refresh()` and refuses on a missing `plan_usage` or a non-finite allowance
+  - `src/tavily.ts`: `usage()` raises a rate-limit error with `Retry-After` on 429.
+  - `src/server.ts`: console-only `POST /v1/usage/refresh`.
+  - `src/main.ts`: a read at start, and a 60 s tick that reads only when the cache has expired.
+  - `test/fixture-server.ts`: `--usage <limit|none|error>` scripted TEST FIXTURE `/usage`.
+- **Console:**
+  - `views/system.js`: "Tavily account usage" panel (provider figures, states, refresh, key-level and pay-as-you-go lines, add-on note) and a separate "Halflife spending limits" panel (lifetime, daily, account guard). Both are exported for the UI test.
+  - AD-35:
+    - `index.html`: top bar, sidebar with nav + Traffic section, scrim
+    - `app.js`: sidebar controller (docked/overlay by `matchMedia`, remembered preference, inert/focus, Escape/outside/nav-link/selection dismissal in overlay, global `T`)
+    - new `traffic.js`: the shared live list, disclosure, keyboard, new marks
+    - `views/inspector.js`: no bar or drawer; reads the shared list, registers a select handler, newer/older in the header
+    - `styles.css`: shell, sidebar, Traffic, usage panel; old rail/drawer rules removed; ≤ 980 px keeps page scroll with a sticky top bar and a stable scrollbar gutter; the Claim explorer filter wraps
+- **Tests and results:**
+  - `cd engine && npm test`: **75/75** (65 before; 10 new in `credits.test.ts`)
+  - `node --test engine/test/console-ui.test.mjs`: **13/13**
+    - First run 11/13. One failure was a 15 px shift when the overlay locked scroll; fixed with `scrollbar-gutter: stable`.
+    - The second was a real overflow on the Claim explorer at 390 px (427 px filter control, existing since session 10); fixed with wrapping.
+    - Then a test click landed in the scrollbar gutter; the test was corrected.
+  - `node --test "extension/test/*.test.mjs"`: **14/14**
+  - Integration (`docker compose … build config`, stack stopped, `NO_BUILD=1 node deploy/test/integration.mjs`): first **8/13**. The engine's startup `/usage` read ran before the gateway was up, and the new 120 s failure backoff then refused every paid call. Fixed (5 s backoff when there is no reading), with a regression test; the re-run passed **13/13**.
+  - Go plugin: not re-run (no plugin change).
+- **Running stack:** restarted on the rebuilt engine image. The first read after restart failed while the gateway was starting, as designed. It succeeded on the next tick: state ok, 131 of 1,000, account guard 800, lifetime cap 700, daily cap 150.
+- **Spend:** Tavily 0 credits (only free `/usage` reads, about 6 this session); DeepSeek $0 (fixtures only).
+- **Errors this session:** Git Bash heredocs failed twice on long content ("unexpected EOF while looking for matching quote"). File content was written with the Write tool and applied by Node scripts instead.
+
+---
+
 ## 2026-11-03, session 11 (Inspector Traffic drawer, AD-33; real-chatgpt.com result; push)
 
 - **Operator report:** the ChatGPT extension was tested on real chatgpt.com in the operator's signed-in browser. It recognised the answers, its checks reached the local engine, and the results appeared in the console. No adapter change was needed. Recorded in `CHATGPT_EXTENSION.md` §5, AD-32, `SUBMISSION.md` and `extension/README.md`. The checklist items were not reported one by one (Local Network Access not separately confirmed).

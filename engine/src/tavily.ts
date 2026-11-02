@@ -97,6 +97,11 @@ export class TavilyViaBifrost implements Search {
 
   async usage(): Promise<AccountUsage> {
     const res = await this.f(`${this.o.bifrostUrl}/relay/tavily/usage`, { headers: { "x-bf-vk": this.o.virtualKey }, signal: AbortSignal.timeout(this.o.searchTimeoutMs) });
+    if (res.status === 429) {
+      // /usage has its own limit (10 per 10 minutes); the guard backs off for Retry-After.
+      const ra = Number(res.headers.get("retry-after"));
+      throw new SearchError("rate_limit", "Tavily /usage HTTP 429 (rate limited)", 429, Number.isFinite(ra) && ra > 0 ? ra * 1000 : 0);
+    }
     if (!res.ok) throw new SearchError(res.status === 402 ? "budget" : "http", `Tavily /usage HTTP ${res.status}`, res.status);
     return parseUsage(await res.json());
   }

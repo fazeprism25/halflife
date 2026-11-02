@@ -22,7 +22,7 @@ There are **no npm dependencies** anywhere: no `npm install` step. Keep it that 
 |---|---|---|---|
 | Engine (75 tests) | `cd engine && npm test` | Node 24 | none |
 | Extension (8 adapter + 6 end-to-end) | `node --test "extension/test/*.test.mjs"` | Node 24, Edge or Chrome, openssl | none (test fixtures) |
-| Console UI (13 checks: collapsible sidebar, Traffic flyout beside it, keyboard, live updates, desktop/tablet/phone layouts, themes, System provider usage states) | `node --test engine/test/console-ui.test.mjs` | Node 24, Edge or Chrome | none (test fixtures) |
+| Console UI (15 checks: collapsible sidebar, Traffic flyout beside it and as a phone sheet, keyboard, live updates, desktop/tablet/phone layouts, themes, System provider usage states) | `node --test engine/test/console-ui.test.mjs` | Node 24, Edge or Chrome | none (test fixtures) |
 | Engine import check | `node engine/scripts/check-imports.mjs` | Node 24 | none |
 | Plugin (21 Go tests with `-race`, `go vet`, benchmarks) | `docker build -f deploy/gateway.Dockerfile --target plugin-test --no-cache-filter plugin-test --progress=plain .` | Docker | none |
 | Integration (13 end-to-end checks) | `node deploy/test/integration.mjs` | Docker, port 8080 free | none (test fixtures) |

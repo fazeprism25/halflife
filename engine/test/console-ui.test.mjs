@@ -155,7 +155,7 @@ test("Traffic opens sideways, to the right of the sidebar, without moving the na
   assert.ok(Math.abs(after.panel.left - after.sidebar.right) <= 1, `flyout starts at the sidebar's right edge (${after.panel.left} vs ${after.sidebar.right})`);
   assert.equal(after.panel.top, 48, "below the top bar");
   assert.equal(after.panel.bottom, 900, "full height");
-  assert.ok(after.panel.width >= 320 && after.panel.right <= 1440, `flyout width ${after.panel.width}`);
+  assert.equal(after.panel.width, 440, "desktop: the flyout's full width (--flyout-max)");
   assert.deepEqual(after.nav, before.nav, "no navigation item moved");
   assert.deepEqual([after.sidebar, after.sbScroll, after.toggle], [before.sidebar, before.sbScroll, before.toggle], "the sidebar did not grow");
   assert.deepEqual([s.sbW, s.mainW], [sbW, mainW], "the flyout overlays the page instead of narrowing it");
@@ -313,7 +313,7 @@ test("tablet: overlay mode starts collapsed, is modal, and closes with Escape, o
   await openTraffic();
   const after = await layout();
   assert.ok(Math.abs(after.panel.left - after.sidebar.right) <= 1, `flyout beside the sidebar (${after.panel.left} vs ${after.sidebar.right})`);
-  assert.ok(after.panel.right <= 820 && after.panel.width >= 320, `flyout ${after.panel.left}–${after.panel.right}`);
+  assert.ok(after.panel.width >= 360 && after.panel.right <= 820 - 40, `flyout ${after.panel.left}–${after.panel.right}`);
   assert.deepEqual([after.panel.top, after.panel.height], [0, 1000]);
   assert.deepEqual([after.nav, after.sidebar], [before.nav, before.sidebar], "navigation unchanged");
   assert.ok(await noHScroll());
@@ -375,18 +375,93 @@ test("phone: no horizontal scroll on any page; the overlay fits the screen", { s
   assert.deepEqual([Math.round(r.top), Math.round(r.height)], [0, 844]);
   assert.ok(await noHScroll());
   await shot("07-phone-overlay");
-  // no room beside the sidebar: the flyout covers the sidebar exactly, and ✕ returns to the menu
-  await openTraffic();
-  const l = await layout();
-  assert.deepEqual([l.panel.left, l.panel.width, l.panel.top, l.panel.height], [0, l.sidebar.width, 0, 844], "flyout covers the sidebar");
-  assert.ok(await noHScroll());
-  assert.ok((await state()).focusInTraffic);
-  await shot("07b-phone-traffic");
-  await clickSel("#traffic-close");
-  await settle();
-  let s = await state();
-  assert.deepEqual([s.trafficOpen, s.open, s.focusOnTrafficToggle], [false, true, true], "✕ closes the flyout back to the menu");
   await clickAt(340, 400); // the uncovered strip (right of the 300 px sidebar, left of the scrollbar gutter)
+  await settle();
+  assert.equal((await state()).open, false);
+});
+
+test("tablet range: Traffic stays beside the sidebar and at least 360 px wide from 700 to 1099 px", { skip }, async () => {
+  for (const w of [700, 768, 1024, 1099]) {
+    await viewport(w, 800);
+    await settle();
+    await clickSel("#menu-btn");
+    await settle();
+    await openTraffic();
+    const l = await layout();
+    assert.equal((await state()).mode, "overlay");
+    assert.ok(Math.abs(l.panel.left - l.sidebar.right) <= 1, `${w}px: beside the sidebar`);
+    assert.ok(l.panel.width >= 360 && l.panel.width <= 440, `${w}px: usable width ${l.panel.width}`);
+    assert.ok(l.panel.right <= w - 40, `${w}px: leaves a strip to tap outside`);
+    assert.ok(await noHScroll(), `${w}px: no horizontal overflow`);
+    if (w === 700) await shot("05c-tablet-700-traffic");
+    await key("Escape", "Escape", 27);
+    await key("Escape", "Escape", 27);
+    await settle();
+  }
+});
+
+test("phone: Traffic is a full-width sheet with a clear Close button; cards readable, nothing clipped", { skip }, async () => {
+  for (const w of [390, 373]) {
+    await viewport(w, 844);
+    await settle();
+    await clickSel("#menu-btn");
+    await settle();
+    const before = await layout();
+    await openTraffic();
+    const l = await layout();
+    // the fixed-position viewport, as covered by the full-screen scrim (a classic scrollbar's reserved gutter is outside it)
+    const avail = await p.eval(`Math.round(document.querySelector("#sidebar-scrim").getBoundingClientRect().width)`);
+    assert.ok(avail >= w - 20, `${w}px: available width ${avail}`);
+    assert.deepEqual([l.panel.left, l.panel.width, l.panel.top, l.panel.height], [0, avail, 0, 844], `${w}px: the sheet uses the whole viewport`);
+    assert.deepEqual([l.nav, l.sidebar], [before.nav, before.sidebar], `${w}px: the sidebar did not grow`);
+    assert.ok(await noHScroll(), `${w}px: no horizontal overflow`);
+    const v = await p.eval(`(() => {
+      const panel = document.querySelector("#traffic-panel"), pr = panel.getBoundingClientRect();
+      const head = panel.querySelector(".feed-head").getBoundingClientRect(), close = document.querySelector("#traffic-close");
+      const cr = close.getBoundingClientRect();
+      const cards = [...panel.querySelectorAll(".feed-item")].map((el) => {
+        const r = el.getBoundingClientRect(), badge = el.querySelector(".headline .badge, .headline > span")?.getBoundingClientRect(), hl = el.querySelector(".headline");
+        return { left: r.left, right: r.right, badgeIn: !badge || (badge.left >= r.left && badge.right <= r.right), headlineFits: hl.scrollWidth <= hl.clientWidth + 1, previewW: el.querySelector(".preview").clientWidth };
+      });
+      return { headTop: head.top, headBottom: head.bottom, closeText: close.innerText.trim(), closeH: cr.height, closeIn: cr.right <= pr.right && cr.left >= pr.left, cards };
+    })()`);
+    assert.ok(v.headTop >= 0 && v.headBottom <= 844, `${w}px: header fully visible`);
+    assert.equal(v.closeText, "Close", "the close button is labelled, not just an icon");
+    assert.ok(v.closeH >= 40 && v.closeIn, `${w}px: close button is a 40 px target inside the sheet`);
+    for (const c of v.cards) {
+      assert.ok(c.left >= 0 && c.right <= avail + 1, `${w}px: card inside the sheet (${c.left}–${c.right})`);
+      assert.ok(c.badgeIn && c.headlineFits, `${w}px: status fully visible`);
+      assert.ok(c.previewW >= avail - 40, `${w}px: the title gets the sheet's width (${c.previewW}px)`);
+    }
+    assert.ok((await state()).focusInTraffic, "focus moves into the sheet");
+    await shot(`07b-phone-${w}-traffic`);
+    await clickSel("#traffic-close");
+    await settle();
+    const s = await state();
+    assert.deepEqual([s.trafficOpen, s.open, s.focusOnTrafficToggle], [false, true, true], "Close returns to the menu");
+    await key("Escape", "Escape", 27);
+    await settle();
+  }
+  // short screen: the header stays, only the list scrolls, and the last report is reachable
+  await viewport(373, 420);
+  await settle();
+  await key("t", "KeyT", 84);
+  await until(async () => (await state()).focusInTraffic, { what: "T on a short phone" });
+  await settle();
+  const sc = await p.eval(`(() => {
+    const panel = document.querySelector("#traffic-panel"), list = panel.querySelector(".feed-list");
+    const items = list.querySelectorAll(".feed-item");
+    list.scrollTop = list.scrollHeight;
+    const last = items[items.length - 1].getBoundingClientRect(), lr = list.getBoundingClientRect();
+    return { scrolls: list.scrollHeight > list.clientHeight, panelH: panel.getBoundingClientRect().height, headTop: panel.querySelector(".feed-head").getBoundingClientRect().top, lastVisible: last.bottom <= lr.bottom + 1 && last.top >= lr.top - 1, docScroll: document.scrollingElement.scrollTop };
+  })()`);
+  assert.equal(sc.panelH, 420, "the panel takes the full height");
+  assert.ok(sc.scrolls, "the list has its own scroll");
+  assert.equal(sc.headTop, 0, "the header does not scroll away");
+  assert.ok(sc.lastVisible, "the last report can be scrolled into view");
+  await shot("07c-phone-short-traffic");
+  await key("Escape", "Escape", 27);
+  await key("Escape", "Escape", 27);
   await settle();
   assert.equal((await state()).open, false);
 });

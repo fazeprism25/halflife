@@ -106,12 +106,24 @@ function serveStatic(req: http.IncomingMessage, res: http.ServerResponse, pathna
   const file = path.resolve(CONSOLE_DIR, "." + rel);
   if (!file.startsWith(CONSOLE_DIR + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) return false;
   const ext = path.extname(file);
-  res.writeHead(200, {
+  // Every console file is revalidated (no-cache + ETag; an unchanged file costs a 304). A max-age on
+  // CSS/JS while index.html was no-cache let a browser run new HTML with old CSS/JS after an update
+  // (session 14: the Traffic flyout rendered inside the sidebar with session 12's stylesheet).
+  const st = fs.statSync(file);
+  const etag = `W/"${st.size.toString(36)}-${Math.floor(st.mtimeMs).toString(36)}"`;
+  const headers = {
     "content-type": MIME[ext] ?? "application/octet-stream",
-    "cache-control": ext === ".html" ? "no-cache" : "public, max-age=300",
+    "cache-control": "no-cache",
+    etag,
     "content-security-policy": "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
     ...SECURITY_HEADERS,
-  });
+  };
+  if (req.headers["if-none-match"]?.split(",").some((t) => t.trim() === etag)) {
+    res.writeHead(304, headers);
+    res.end();
+    return true;
+  }
+  res.writeHead(200, headers);
   if (req.method === "HEAD") res.end();
   else fs.createReadStream(file).pipe(res);
   return true;

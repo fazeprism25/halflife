@@ -85,6 +85,25 @@ test("static serving blocks path traversal and sets a strict CSP", async (t) => 
   if (idx.status === 200) assert.match(idx.headers.get("content-security-policy") ?? "", /script-src 'self'/);
 });
 
+test("console files are always revalidated, so HTML, CSS and JS never mix versions", async (t) => {
+  const { server } = engineServer();
+  const base = await listen(server);
+  t.after(() => server.close());
+  for (const f of ["/", "/styles.css", "/app.js", "/traffic.js"]) {
+    const r = await fetch(base + f);
+    assert.equal(r.status, 200, f);
+    await r.arrayBuffer();
+    assert.equal(r.headers.get("cache-control"), "no-cache", `${f}: no max-age that could outlive an update`);
+    const etag = r.headers.get("etag");
+    assert.match(etag ?? "", /^W\/".+"$/, `${f}: has a validator`);
+    const again = await fetch(base + f, { headers: { "if-none-match": etag! } });
+    assert.equal(again.status, 304, `${f}: unchanged file revalidates cheaply`);
+    const other = await fetch(base + f, { headers: { "if-none-match": 'W/"stale"' } });
+    assert.equal(other.status, 200, `${f}: a changed file is sent again`);
+    await other.arrayBuffer();
+  }
+});
+
 function fakeGateway(handler: (req: http.IncomingMessage, body: string, res: http.ServerResponse) => void) {
   const seen: { url: string; headers: http.IncomingHttpHeaders; body: any }[] = [];
   const server = http.createServer(async (req, res) => {

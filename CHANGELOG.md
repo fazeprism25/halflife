@@ -4,6 +4,10 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ## [Unreleased]
 
+### Fixed (2026-11-03): Traffic panel on small screens; console caching (AD-37)
+- Beside the sidebar the Traffic panel is now 360–440 px wide, depending on the space available. Below 700 px it opens as a full-screen sheet with a labelled Close button instead of a 300 px column. Its header stays visible and only the list scrolls.
+- Console files are always revalidated (`no-cache` with an ETag). Previously CSS and JS were cached for 5 minutes while the HTML was not, so right after an update a browser could mix versions and show the Traffic panel inside the sidebar.
+
 ### Changed (2026-11-03): Traffic opens to the right of the sidebar (AD-36)
 - Traffic no longer expands vertically inside the sidebar. Clicking it (or `T`) opens the latest 100 reports in a flyout panel to the right of the sidebar, so the navigation never moves and the report keeps its width. On phones the flyout covers the menu, with ✕ to return.
 - It closes with Traffic again, ✕, Escape, a click outside, a navigation link or choosing a report; focus moves in and back. Live updates, keyboard navigation, selection and new-report marks are unchanged. It always starts closed.

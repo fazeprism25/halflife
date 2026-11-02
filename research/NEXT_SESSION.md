@@ -1,6 +1,25 @@
 # Next Session
 
-_Read `PROJECT_STATE.md` first, then this file. Updated in session 13 (2026-11-03): Traffic flyout to the right of the sidebar (AD-36), committed, not pushed._
+_Read `PROJECT_STATE.md` first, then this file. Updated in session 14 (2026-11-03): Traffic flyout responsive layout and console revalidation (AD-37); sessions 13 and 14 committed, not pushed._
+
+## Session 14 summary
+- **Traffic responsive fix (AD-37):** 360–440 px flyout beside the sidebar from 700 px; a full-screen sheet with a labelled Close button below 700 px. The header is fixed and the list scrolls.
+- **Root cause of "panel under the Traffic row":** stale cached CSS/JS (5-minute `max-age`, no validator) running with new HTML. Console files are now `no-cache` with an ETag.
+- **Tests:** console UI 15/15, engine 76/76.
+- **Git:** commits for sessions 13 and 14 are local, **not pushed**. Nothing deployed.
+
+## Exact next actions (session 15)
+1. **Operator:** approve or decline pushing the session 13 and 14 commits (secret scan on `git ls-files` first).
+2. **Operator, optional, to see it on the running stack:**
+   - rebuild the engine image: `docker compose -f deploy/docker-compose.yml build config`, then `up -d --no-build`. The cache-header fix is in `server.ts`, so copying only the console is not enough.
+   - After that, one hard reload (Ctrl+F5) clears any copy cached under the old 5-minute headers.
+   - Only when asked.
+3. The session 12 list (add-on credits, screenshots, operator queue, committing rules) still applies.
+
+## Known limitations (session 14)
+- Browsers that cached the console under the old headers keep those files for up to 5 minutes, or until a hard reload, until the new engine is running.
+- With a classic (non-overlay) scrollbar, a narrow desktop window shows the reserved scrollbar gutter (about 15 px) beside the phone sheet; phones have overlay scrollbars and no gutter.
+- The UI test covers Edge/Chrome only.
 
 ## Session 13 summary
 - **Traffic flyout (AD-36):** Traffic no longer expands vertically inside the sidebar. Its sidebar item opens a flyout to the right of the sidebar (covering the sidebar below 700 px). It closes with Traffic again, ✕, Escape, an outside press, a nav link, a selection or Tab out. The sidebar redesign (AD-35) and everything else are unchanged.

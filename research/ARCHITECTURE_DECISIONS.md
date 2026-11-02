@@ -515,5 +515,31 @@ Each entry: decision, why, alternatives considered or rejected. Decisions marked
 - **Motion:** 200 ms slide and fade from 12 px left; none under `prefers-reduced-motion`. A closed flyout is `visibility: hidden`, so it leaves the tab order and the accessibility tree. It closes instantly with its sidebar.
 - **Why not reuse the AD-33 code as it was:** the drawer lived inside the Inspector, so it existed only on that page and was positioned against the workspace. The list is now shared and lives in the sidebar on every page. The AD-33 interaction is kept (sideways panel, ✕/Escape/outside click/selection, focus in and back, same 360 px width rule), adapted to sit beside the sidebar. AD-33's full-viewport modal scrim is not reused in docked mode, where the sidebar itself is non-modal.
 - **Rejected:** a vertical accordion (operator); widening the sidebar to hold the list (narrows the report); a second permanent column.
+- **Amended by AD-37 (session 14):** widths are now 360–440 px beside the sidebar, and below 700 px the flyout is a full-screen sheet instead of covering only the sidebar.
 - **Implementation:** `engine/console/{index.html,traffic.js,app.js,styles.css}`; no dependency; no engine, spend, usage, extension or other page change.
 - **Tests:** `engine/test/console-ui.test.mjs`, still 13 checks, with the Traffic checks rewritten. They cover the flyout at the sidebar's right edge, unmoved navigation and sidebar geometry, unchanged page width, toggle-again, Escape (layered in overlay mode), outside click, a click elsewhere in the sidebar, a nav link, Tab out, a reload not reopening it, selection, `T`, arrows/Home/End/Enter, live marks, tablet placement within the viewport, and the phone cover-the-sidebar placement with ✕.
+
+## AD-37 Traffic flyout sizing by available width; console files always revalidated (session 14, 2026-11-03)
+- **Report:** the operator tested at about 373 px and found the Traffic panel too cramped, and saw it "underneath the Traffic navigation row". The screenshot they mention was not available in the agent's session; the diagnosis below is from measurements.
+- **Investigation (DOM and computed CSS, headless Edge, TEST FIXTURE engine):**
+  - The running container's console files were byte-identical (md5) to commit `4398a83`, so the deployed code was current. The image itself is from session 12; the console had been copied in.
+  - With `4398a83` the panel was where AD-36 intended: 1440 px, fixed at x 300, top 48, 360 × 852; 820 px, x 300, 360 × 844; 390 and 373 px, x 0, **300 px wide**, covering the sidebar and leaving a 73–90 px strip of page. So the panel was correctly positioned, but the phone design was too narrow.
+  - **"Underneath the Traffic row" was reproduced** only by loading the new `index.html` with session 12's `styles.css`, `app.js` and `traffic.js` (CDP request interception): the panel became `position: static` inside the sidebar at y 438, 299 × 362 px, at every width.
+  - The engine sent `index.html` with `no-cache` but CSS and JS with `public, max-age=300` and no validator. For up to 5 minutes after an update, a browser could therefore run the new HTML with the old CSS/JS. That is a version mix, not a positioning bug.
+  - Git history: the AD-33 drawer (`d2349a3`) was 360 px wide at the rail's edge; AD-36 adapted it beside the sidebar. Neither had a phone design beyond "narrow column".
+- **Decision, layout (`styles.css`):**
+  - Beside the sidebar the flyout is `clamp(--flyout-min 360px, 100vw − sidebar − --flyout-gap 40px, --flyout-max 440px)` wide. 360 px is the narrowest width at which a report card's meta line, title and status read without loss; the 40 px gap keeps an outside tap possible.
+  - So sideways placement needs 300 + 360 + 40 = **700 px**, the existing breakpoint. At 1440 px it is 440 wide, at 820 px 440, and at 700 px 360.
+  - **Below 700 px it is a full-screen sheet:** `left: 0; right: 0`, top to bottom, over the menu. It is edge to edge of the fixed-position viewport, the same area as the scrim; a classic scrollbar's reserved gutter, which phones do not have, is outside it.
+  - On phones the close button is labelled "Close" and is a 40 px target. Escape and the other dismissals are unchanged.
+  - The header is fixed in the panel; only the list scrolls (`flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain`).
+- **Decision, caching (`engine/src/server.ts`):** every console file is served `cache-control: no-cache` with a weak ETag (size and mtime). An unchanged file costs a 304, so HTML, CSS and JS can no longer mix versions after an update. No other server behaviour changed.
+- **Unchanged:** AD-35's sidebar, AD-36's interaction, focus and keyboard behaviour, live updates, the 100-report window, `T`, selection and new-report marks. Tavily accounting, limits and the extension are untouched.
+- **Rejected:** z-index or fixed-width tweaks (the panel was not mis-stacked); covering only the sidebar on phones (too narrow at 300 px); `100vw` to cover the scrollbar gutter (Chrome excludes a `scrollbar-gutter: stable` gutter from `vw` too); versioned asset URLs (would need a build step or editing every import).
+- **Tests:**
+  - `engine/test/console-ui.test.mjs`, now 15 checks, adds:
+    - a tablet range at 700, 768, 1024 and 1099 px: beside the sidebar, 360–440 px wide, a tap strip, no overflow
+    - a phone sheet at 390 and 373 px: full available width, the sidebar not grown, the header visible, a labelled 40 px Close button, every card and status inside the sheet, titles as wide as the sheet allows, no overflow, focus, Close back to the menu
+    - a short 373 × 420 screen: full-height panel, the list scrolls on its own, the header stays at the top, the last report reachable
+  - Desktop now asserts 440 px.
+  - `engine/test/http.test.ts` adds a test that console files are `no-cache` with an ETag and revalidate to 304.

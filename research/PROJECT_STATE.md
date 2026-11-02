@@ -1,6 +1,23 @@
 # Halflife: Project State
 
-_Last updated: 2026-11-03 (session 13: Traffic opens as a flyout to the right of the sidebar, AD-36; session 12: collapsible sidebar, provider account usage). The persistent source of truth: a fresh session reads this file, then `NEXT_SESSION.md`._
+_Last updated: 2026-11-03 (session 14: Traffic flyout responsive layout and console caching, AD-37; session 13: Traffic opens as a flyout to the right of the sidebar, AD-36; session 12: collapsible sidebar, provider account usage). The persistent source of truth: a fresh session reads this file, then `NEXT_SESSION.md`._
+
+## Session 14: Traffic flyout responsive layout and console caching (AD-37)
+
+- **Operator report:** at about 373 px the Traffic panel was too cramped, and it appeared underneath the Traffic row. (The screenshot was not available to the agent; diagnosis by measurement.)
+- **Findings:**
+  - The running container already served `4398a83`'s console (md5 match).
+  - The committed layout was positioned as designed, but on phones it was a 300 px column.
+  - "Underneath the Traffic row" reproduces exactly when the new `index.html` runs with session 12's cached CSS/JS: the engine cached CSS/JS for 5 minutes with no validator, while HTML was `no-cache`.
+- **Fixes:**
+  - Beside the sidebar, the flyout is 360–440 px (`clamp`) with a 40 px tap strip, from 700 px up.
+  - Below 700 px it is a full-screen sheet with a labelled 40 px Close button.
+  - The header is fixed; only the list scrolls.
+  - Every console file is now `no-cache` with an ETag (304 when unchanged), so versions cannot mix after an update.
+  - Files: `engine/console/{styles.css,index.html}`, `engine/src/server.ts`, tests.
+- **Tests:** console UI **15/15** (new tablet-range and phone-sheet checks); engine **76/76** (new revalidation test). Extension, integration and plugin not re-run (untouched code).
+- **Not deployed:** the running stack still serves `4398a83`'s console and the old cache headers. The server change needs an engine image rebuild; a console-only copy would not change the headers.
+- **Git:** one commit on top of `4398a83`, UTC timestamps, not pushed. `4398a83` is not pushed either.
 
 ## Session 13: Traffic opens sideways as a flyout (AD-36)
 

@@ -4,6 +4,41 @@ Newest first. Every entry records what was done, the files touched, the tests ru
 
 ---
 
+## 2026-11-03, session 14 (Traffic flyout responsive layout; console revalidation, AD-37)
+
+- **Operator report:** the Traffic panel was too cramped at about 373 px and appeared underneath the Traffic navigation row. The screenshot was referenced but not available in the agent's context.
+- **Investigation:**
+  - `docker exec halflife-engine-1 md5sum /app/engine/console/*` matched `git show 4398a83:…` for `index.html`, `app.js`, `traffic.js` and `styles.css`. The container image dates from session 12; the console had been copied in.
+  - `curl -I` on :8090: `index.html` `no-cache`; `styles.css`, `app.js`, `traffic.js` `public, max-age=300`, no ETag or Last-Modified.
+  - A CDP measurement script (scratchpad, not committed) at 1440/820/390/373 px:
+    - committed code: the panel was fixed at the sidebar's edge on desktop and tablet (360 wide); at 390/373 px it was 300 px covering the sidebar
+    - new HTML with intercepted session 12 CSS/JS: the panel was static under the Traffic row (y 438, 299 × 362) at every width, which is the reported symptom
+  - `git show d2349a3` (AD-33 drawer, 360 px at the rail edge) and `4398a83` (AD-36) reviewed.
+- **Changes:**
+  - `engine/console/styles.css`:
+    - `--flyout-min/max/gap` and a `clamp()` width beside the sidebar
+    - a full-screen sheet below 700 px
+    - header and list rules (list scrolls, header fixed)
+    - a `.traffic-close` button with a phone label
+    - the redundant `height: 100dvh` removed in overlay mode
+  - `engine/console/index.html`: the close button gets a visible "Close" label (shown on phones).
+  - `engine/src/server.ts`: `serveStatic` sends `no-cache` and a weak ETag for every console file and answers `If-None-Match` with 304.
+  - Tests:
+    - `engine/test/http.test.ts`: a revalidation test
+    - `engine/test/console-ui.test.mjs`: a tablet-range test, a phone-sheet test (390, 373, and a short 373 × 420 screen); desktop and tablet width assertions tightened
+- **Tests and results:**
+  - `cd engine && npm test`: **76/76**.
+  - `node --test engine/test/console-ui.test.mjs`: **15/15** on the fourth run.
+    - Run 1: the phone sheet measured 375 px at 390 px, because `right: 0` stops at the reserved scrollbar gutter (`scrollbar-gutter: stable` ≤ 980 px).
+    - Run 2: tried `width: 100vw`; Chrome also excludes the gutter from `vw`, so still 375. Reverted to `right: 0`; the test now measures the available width as the full-viewport scrim's width.
+    - Run 3: the title-width threshold was compared with the viewport instead of the sheet; corrected.
+  - Screenshots reviewed: 1440 docked, 820 and 700 tablet, 390 and 373 phone, and the short phone.
+  - Extension, integration and Go plugin: not re-run (no extension, deploy or plugin change; the server change is covered by `http.test.ts`).
+- **Spend:** 0 Tavily credits, $0 DeepSeek (TEST FIXTURE only).
+- **Git:** one commit on top of `4398a83`, UTC timestamps. Not pushed; nothing deployed.
+
+---
+
 ## 2026-11-03, session 13 (Traffic flyout to the right of the sidebar, AD-36)
 
 - **Operator request:** replace AD-35's vertical Traffic accordion with a sideways panel to the right of the navigation sidebar, restoring the earlier interaction. Keep the sidebar redesign. Change nothing in Tavily usage, credit accounting, spend safeguards, engine limits, the extension or unrelated pages. Separate commit; no push or deploy without approval.

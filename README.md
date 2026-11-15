@@ -1,229 +1,518 @@
-# Halflife
+<p align="center">
+  <img src="docs/assets/diagrams/banner.svg" alt="HALFLIFE wordmark beside four example claims with very different shelf lives: a market price, a software version, a company CEO and a historical fact" width="880">
+</p>
 
-**Every factual claim has a different expiration rate. Halflife tells your AI stack when to check again.**
+<h3 align="center">Claim-level freshness detection and live verification for AI-generated answers</h3>
 
-Halflife is a **freshness-risk detection and verification layer** for LLM traffic, built as an extension to the [Bifrost](https://github.com/maximhq/bifrost) AI gateway. It finds the claims in a model's answer that are likely to have gone out of date, checks the risky ones against live web evidence from [Tavily](https://tavily.com), reports a claim-level verdict with verified quotes, and adjusts the gateway's response cache accordingly.
+<p align="center">
+  <a href="https://youtu.be/xGCQDT1-bp4"><b>▶ Demo video</b></a> ·
+  <a href="HALFLIFE_Project_Presentation.pptx"><b>Presentation (PPTX)</b></a> ·
+  <a href="#architecture">Architecture</a> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#installation-and-setup">Setup</a> ·
+  <a href="#dashboard-console">Dashboard</a> ·
+  <a href="#browser-extension-chatgpt">Extension</a> ·
+  <a href="#limitations">Limitations</a> ·
+  <a href="docs/ARCHITECTURE.md">Docs</a>
+</p>
 
-Halflife is **not a general fact-checker**. It answers one question: *has this claim gone stale?* Claims that cannot go out of date ("The Battle of Hastings was in 1066") are never checked, even if they are wrong.
-
-> **Status:** hackathon prototype (Geek Room Global AI Hackathon 2026, Bifrost Problem 04 and Tavily Problem 06). It runs end to end against real services and has a test suite, but it is **not production-ready**: single node, SQLite storage, not load-tested, and the outdated-probability score is **not calibrated**. See [Implementation status](#implementation-status) and [Known limitations](#known-limitations).
-
-![Halflife console: a gateway answer split into claims; "Node.js 22 is the latest major version" is superseded with strong evidence and its cache entry was invalidated, while "React 19" is current](docs/assets/screenshots/01-inspector-claim-report.png)
-
-<sub>A real report from a local development run (DeepSeek answer, Tavily evidence), shown with the sidebar collapsed. Times are in UTC. More in [Console](#console).</sub>
+<p align="center">
+  <img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache--2.0-10b981?style=flat-square">
+  <img alt="Node.js 24, zero npm dependencies" src="https://img.shields.io/badge/engine-Node.js%2024%20%C2%B7%200%20deps-10b981?style=flat-square">
+  <img alt="Go plugin for Bifrost v2.4.0" src="https://img.shields.io/badge/plugin-Go%20%C2%B7%20Bifrost%20v2.4.0-2b2b29?style=flat-square">
+  <img alt="Evidence from Tavily" src="https://img.shields.io/badge/evidence-Tavily-2b2b29?style=flat-square">
+  <img alt="Status: hackathon prototype" src="https://img.shields.io/badge/status-prototype-f59e0b?style=flat-square">
+</p>
 
 ---
 
-## Contents
+**AI-generated answers can become outdated because different facts expire at different rates.** "The Berlin Wall fell in 1989" will never change; "the latest Python is 3.12" was out of date within months. **HALFLIFE detects freshness risk at the claim level and checks potentially outdated claims against current evidence.**
 
+It splits an answer into individual claims, estimates how likely each one is to have gone stale from what *kind* of fact it is and how old it is, searches the web with [Tavily](https://tavily.com) only for the risky ones, and reports a verdict per claim with quotes that are checked against the source in code. It runs as a plugin and companion engine for the [Bifrost](https://github.com/maximhq/bifrost) AI gateway, and as an opt-in ChatGPT browser extension that sends one chosen answer to your own local engine.
+
+HALFLIFE is **not a general fact-checker**. It answers one question, *could this claim have gone out of date?*, and abstains on claims that cannot (a wrong historical date passes through unchecked).
+
+![HALFLIFE console Inspector: a gateway answer split into two claims. "Node.js 22 is the latest major version" is marked superseded with strong evidence and its cache entry was invalidated; "React 19" is current.](docs/assets/screenshots/01-inspector-claim-report.png)
+
+<sub>Real report from a local development run: DeepSeek answer through Bifrost, Tavily evidence. Times in UTC. Screenshot provenance: <a href="docs/assets/screenshots/README.md">docs/assets/screenshots/README.md</a>.</sub>
+
+> [!NOTE]
+> **Status:** hackathon prototype built for the Geek Room Global AI Hackathon 2026 (Bifrost Problem 04, Tavily Problem 06). It runs end to end against real services and has automated tests, but it is single-node, uses SQLite, is not load-tested, and its outdated-probability score is **not calibrated**.
+
+## Demo video and presentation
+
+[![Watch the HALFLIFE demo on YouTube](https://img.youtube.com/vi/xGCQDT1-bp4/hqdefault.jpg)](https://youtu.be/xGCQDT1-bp4)
+
+| | |
+|---|---|
+| ▶ **Demo video** | [youtu.be/xGCQDT1-bp4](https://youtu.be/xGCQDT1-bp4) |
+| **Project presentation** (18 slides, editable, with speaker notes) | [`HALFLIFE_Project_Presentation.pptx`](HALFLIFE_Project_Presentation.pptx) — open it, or use GitHub's *Download raw file* button |
+| **Video slides** (the deck used in the demo video) | [`HALFLIFE_Video_Slides.pptx`](HALFLIFE_Video_Slides.pptx) |
+| Slide-by-slide notes | [`PRESENTATION_NOTES.md`](PRESENTATION_NOTES.md) · deck sources and slide previews in [`presentation_assets/`](presentation_assets/) |
+
+<details>
+<summary><b>Contents</b></summary>
+
+- [Demo video and presentation](#demo-video-and-presentation)
 - [The problem](#the-problem)
-- [How Halflife works](#how-halflife-works)
-- [Key features](#key-features)
+- [The solution](#the-solution)
 - [Architecture](#architecture)
-- [Technology stack](#technology-stack)
-- [Quick start](#quick-start)
-- [Configuration](#configuration)
-- [Usage](#usage)
-- [Console](#console)
+- [How it works](#how-it-works)
+- [Browser extension (ChatGPT)](#browser-extension-chatgpt)
+- [Dashboard (console)](#dashboard-console)
 - [Freshness model](#freshness-model)
-- [ChatGPT extension](#chatgpt-extension)
-- [Tests](#tests)
-- [Implementation status](#implementation-status)
-- [Demo](#demo)
-- [Cost controls](#cost-controls)
+- [Bifrost integration (Problem 04)](#bifrost-integration--problem-04)
+- [Tavily integration (Problem 06)](#tavily-integration--problem-06)
+- [Technology stack](#technology-stack)
 - [Security and privacy](#security-and-privacy)
+- [Installation and setup](#installation-and-setup)
+- [Testing and validation](#testing-and-validation)
 - [Evaluation](#evaluation)
-- [Known limitations](#known-limitations)
+- [Limitations](#limitations)
+- [Roadmap](#roadmap)
 - [Project structure](#project-structure)
-- [Contributing](#contributing)
-- [License](#license)
-- [Acknowledgements](#acknowledgements)
+- [Hackathon context](#hackathon-context)
+- [License and credits](#license-and-credits)
 
-Detailed documentation:
-[Architecture](docs/ARCHITECTURE.md) ·
-[Installation](docs/INSTALLATION.md) ·
-[Development](docs/DEVELOPMENT.md) ·
-[Security](docs/SECURITY.md) ·
-[Evaluation](docs/EVALUATION.md) ·
-[Contributing](CONTRIBUTING.md) ·
-[Changelog](CHANGELOG.md)
+</details>
 
 ---
 
 ## The problem
 
-An LLM answer mixes facts with very different shelf lives. "The chemical symbol for gold is Au" never expires. "The latest major version of Node.js is 22" expires within months. "Keir Starmer is the UK prime minister" was true when many current models were trained and stopped being true in July 2026. Models state all three with the same confidence, from training data that is months or years old.
+Language models answer from training data that is months or years old, and they state every sentence with the same confidence. A single answer routinely mixes facts that will never change with facts that may have changed last week:
 
-**Why decay rates differ:** how quickly a claim goes stale depends on what kind of fact it is. Prices and market figures change in days or weeks; software versions in months; office holders and company leadership in a year or two; historical facts and definitions not at all. A claim's risk of being outdated is therefore a function of its *class* and its *age* (the time since the date it describes, or the model's training cutoff when no date is stated). Halflife models each of 18 claim classes with its own change rate, so a "latest version" claim from an old model is treated as risky while "the Battle of Hastings was in 1066" is never searched.
+> *"Python was created by Guido van Rossum and first released in 1991. The latest version is Python 3.12, and Microsoft's CEO is Satya Nadella."*
 
-A gateway cache makes this worse: it can keep serving yesterday's answer for hours without knowing which parts of it are volatile. Checking every answer against the web is slow and costly; checking none ships outdated facts to users.
+The first sentence is permanent. The second contains two time-sensitive claims with very different shelf lives: software versions turn over in months, company leadership over years. Judging this answer as one unit fails in both directions:
 
-**Why freshness detection matters:** most of the cost of keeping answers current can be avoided by *not* checking claims that cannot change, and by reusing a recent verification instead of searching again. Halflife spends search credits only where the expected staleness risk is high, and gives the gateway a reason to shorten or drop cache entries for volatile answers.
+- **Check the whole answer:** you pay to search for facts that cannot change, and a single stale clause is diluted by the correct ones around it.
+- **Trust the whole answer:** the stale version number reaches the user, and a gateway cache may keep serving it for hours.
 
-## How Halflife works
+How quickly a claim goes stale depends mostly on its **class** and its **age** (the time since the date it describes, or the model's training cutoff when no date is stated):
 
-For every chat completion that passes through the gateway:
-
-1. **Inline triage (Go plugin inside Bifrost, tens of microseconds).** Lexical cues ("latest", "current", prices, versions, office titles…) cap the cache TTL for volatile answers or mark price answers `no-store`. The answer is handed to the engine asynchronously, or synchronously in `verify` mode. Every hook fails open.
-2. **Claim extraction and classification (engine).** An LLM, called through Bifrost, splits the answer into atomic claims and assigns each to one of 18 classes (office holder, software version, price…). Every claim span must occur verbatim in the answer. Without an LLM key, a labelled rule-based extractor is used instead.
-3. **Freshness-risk estimate.** For each class, a Gamma–Poisson change-rate model gives the probability that the claim has changed since its as-of date (stated in the text, or the model's knowledge cutoff as a range).
-4. **Verification of risky claims only.** Claims above a risk threshold (default 20%, at most 3 per answer) are searched with Tavily through a Bifrost relay. An LLM judge returns a verdict with quotes; **every quote is checked against the fetched source in code**, and a verdict without verifiable quotes is discarded.
-5. **Report and cache action.** The claim-level report is stored and exposed via API and console. A claim confirmed outdated (with at least moderate evidence) invalidates the cached answer in Bifrost; otherwise the entry is set to expire when its claims' reuse window ends.
-
-### Three separate measures
-
-Halflife never blends these into one score:
-
-| Measure | What it describes | Form |
+| Kind of fact | Example | Typical time between changes (HALFLIFE's prior) |
 |---|---|---|
-| **Freshness risk** — *P(outdated now)* | how likely *this claim* has changed since its as-of date, from its class's change rate | a probability range, labelled **estimated · uncalibrated** |
-| **Verification verdict** | what current evidence says about the claim | `current` / `superseded` / `contradicted` / `unverifiable` (or `not_checked` with a reason) |
-| **Evidence confidence** | how strong the evidence behind the verdict is | ordinal: `strong` / `moderate` / `weak` / `none`, from explicit rules — **never a percentage** |
+| Market prices | "Bitcoin trades at $60k" | about a day |
+| Software versions | "The latest Python is 3.12" | about 4 months |
+| Policy rates | "The Fed funds rate is 5.25–5.5%" | about 6 months |
+| Products and plans | "ChatGPT Plus costs $20/month" | about a year |
+| Government office holders | "Rishi Sunak is the UK prime minister" | about 4 years |
+| Company leadership | "Satya Nadella is CEO of Microsoft" | about 7 years |
+| Scientific consensus | "Pluto is classified as a dwarf planet" | decades |
+| Historical facts, definitions | "The Berlin Wall fell in 1989" | never (not checked) |
 
-A class-level *expected lifespan* (half-life with a 90% interval) is also shown; it is a property of the class, not of the claim.
+<sub>Examples are the ones the extraction model is given in <code>engine/src/classes.ts</code>. The lifetimes are hand-set prior assumptions with written rationale, not measurements.</sub>
 
-**The language model never produces a number.** It returns spans, a class from a closed list, dates, a verdict enum and quotes, all validated in code.
+## The solution
 
-## Key features
+HALFLIFE handles each claim separately:
 
-- Bifrost extension using only supported extension points: a Go `.so` plugin (six hooks), two Relays, the semantic-cache TTL context key and the cache admin API. No Bifrost source changes.
-- Claim-level verdicts with quotes verified against the source text; replacement values shown only when a verified quote states them.
-- Cache policy driven by freshness: TTL caps, `no-store` for prices, invalidation of confirmed-stale entries, expiry at the reuse window, cache hits linked to the original analysis at no cost.
-- `verify` mode: the reply waits for verification and carries a freshness note when a claim is outdated, and is never cached.
-- Spend bounded in layers: per answer, per day, lifetime, a Tavily account guard (a share of the allowance Tavily's usage API reports for your account), and the Bifrost virtual-key dollar budget.
-- Honest degradation: without a Tavily key, risky claims are reported as "not checked"; without an LLM key, extraction is rule-based and labelled; no verdict is ever invented.
-- Operator console: a collapsible navigation sidebar; a live **Traffic** panel (the latest 100 reports) that opens beside the sidebar, or as a full-screen sheet on phones; claim spans highlighted in the answer, sources and verified quotes, the class model, Tavily account usage as Tavily reports it, and Halflife's own spending limits.
-- Opt-in ChatGPT browser extension that sends one selected answer to your local engine for the same analysis.
-- Engine has **zero npm dependencies** (Node 24 native TypeScript stripping, `node:sqlite`, `node:test`).
+1. **Capture** an AI answer: from traffic passing through the Bifrost gateway, from text submitted to the API or console, or from a ChatGPT answer the user selects in the extension.
+2. **Extract** individual factual claims. Each claim must be an exact substring of the answer.
+3. **Classify** each claim into one of 18 classes (office holder, software version, price…), each with its own change rate.
+4. **Estimate freshness risk:** the probability the claim has changed since its as-of date, as a range.
+5. **Select** claims above a risk threshold (default 20%, at most 3 per answer, riskiest first). Static claims are never searched.
+6. **Retrieve** current evidence with Tavily, through Bifrost's relay, inside layered spending limits.
+7. **Compare:** a judge model returns a verdict with quotes; every quote is checked against the fetched source text in code.
+8. **Report** a claim-level assessment with verified sources, and, for gateway traffic, adjust Bifrost's response cache.
+
+### Three measures, never blended
+
+| Measure | Question it answers | Form |
+|---|---|---|
+| **Freshness risk** — P(outdated now) | Given its class and age, how likely is it that this claim has changed? | a probability range, labelled *estimated · uncalibrated* |
+| **Verification verdict** | What does current evidence say? | `current` · `superseded` · `contradicted` · `unverifiable`, or `not_checked` with a reason |
+| **Evidence confidence** | How strong is the evidence behind that verdict? | `strong` · `moderate` · `weak` · `none`, from explicit rules — never a percentage |
+
+None of these is **factual correctness**. A high freshness risk means "worth checking", not "wrong". A `current` verdict means the retrieved evidence supports the claim today, not that the claim is guaranteed true. The language model never produces a number: it returns spans, a class from a closed list, dates, a verdict enum and quotes, and code validates all of them.
 
 ## Architecture
 
+```mermaid
+flowchart LR
+  subgraph clients["Where answers come from"]
+    APP["Application<br/>(OpenAI-compatible client)"]
+    subgraph ext["ChatGPT extension (MV3)"]
+      CS["Content script<br/>button + result UI"]
+      SW["Service worker<br/>only network caller"]
+    end
+    OP["Operator browser"]
+  end
+
+  subgraph stack["docker compose · ports bound to 127.0.0.1"]
+    subgraph gw["Bifrost gateway :8080 (built from source, v2.4.0)"]
+      PL["HALFLIFE plugin (.so)<br/>triage · cache TTL · capture · hand-off"]
+      SC["semantic_cache<br/>(exact match)"]
+      RT["Relay /relay/tavily<br/>holds TAVILY_API_KEY"]
+      RH["Relay /relay/halflife<br/>VK-gated engine API"]
+    end
+    subgraph en["HALFLIFE engine :8090 (Node 24)"]
+      PIPE["Pipeline<br/>extract → classify → freshness →<br/>verify → evidence rules → learn"]
+      DB[("SQLite<br/>reports · claims · evidence ·<br/>spend ledger · pairings")]
+      UI["Console (dashboard)<br/>+ SSE events"]
+    end
+  end
+
+  DS["DeepSeek API<br/>(model inference)"]
+  TV["Tavily API<br/>(web evidence)"]
+
+  APP -->|"chat completion"| gw
+  gw -->|"LLM request"| DS
+  PL -->|"answer + prompt<br/>(internal network, ingest token)"| PIPE
+  CS -->|"selected answer"| SW
+  SW -->|"/v1/extension/* · loopback only<br/>paired bearer token"| PIPE
+  OP <--> UI
+  APP -.->|"check API (virtual key)"| RH
+  RH --> PIPE
+
+  PIPE -->|"judge calls /v1/chat/completions<br/>(internal token: plugin skips them)"| gw
+  PIPE -->|"search · extract · /usage"| RT
+  RT --> TV
+  PIPE -->|"invalidate stale entry"| SC
+  PIPE <--> DB
+  PIPE --> UI
+
+  classDef em fill:#0f2e24,stroke:#10b981,color:#f0efec
+  classDef prov fill:#2a1d08,stroke:#f59e0b,color:#f0efec
+  classDef dark fill:#1c1c1b,stroke:#3d3d3a,color:#f0efec
+  class PIPE,DB,UI,PL em
+  class DS,TV prov
+  class SC,RT,RH,APP,CS,SW,OP dark
 ```
-Client ──► Bifrost v2.4.0 (OpenAI-compatible) ─────────────────────────► LLM provider (DeepSeek)
-            │ semantic_cache (exact match)
-            │ halflife plugin (.so, post_builtin)   triage · TTL / no-store · capture · hand-off · headers
-            ├─ /relay/tavily/*    ──► Tavily  (key held by Bifrost; priced per credit; VK budget → 402)
-            └─ /relay/halflife/*  ──► Halflife engine API (virtual-key gated, route allow-list)
 
-Halflife engine (Node 24, zero dependencies)
-  extract + classify (LLM via Bifrost) → freshness model → triage → Tavily ladder (reuse · search · extract)
-  → schema-checked verdict, quotes verified in code → evidence level → learning → cache actions
-  SQLite store · REST API · SSE · operator console (http://localhost:8090)
+**Model inference and evidence retrieval are separate paths.** DeepSeek is only ever reached as an LLM provider behind Bifrost (for the application's own answer, and for HALFLIFE's extraction and verdict calls). Tavily is only reached through Bifrost's `/relay/tavily` route, which holds the Tavily key. Neither the engine nor the browser extension holds a provider key; they live only in the gateway container's environment.
+
+| Component | Where | Role |
+|---|---|---|
+| **ChatGPT extension** — content script | `extension/src/content.js`, `src/adapters/chatgpt.js` | Adds **Check freshness** under completed ChatGPT answers, reads the selected answer and the user message before it, shows the compact result. Makes no network calls. |
+| **ChatGPT extension** — service worker | `extension/src/background.js` | Validates messages from its own content scripts and popup, holds the pairing token (IndexedDB), and is the only part that calls the engine, at a loopback address only. |
+| **Bifrost gateway** | `deploy/gateway.Dockerfile` | Bifrost `transports/v2.4.0`, compiled from source at pinned commit `e869c3f` so it can load Go plugins. Routes LLM calls to providers, hosts the relays and the response cache. |
+| **HALFLIFE plugin** | `plugin/` (Go) | Runs inside Bifrost: microsecond-scale lexical triage, cache TTL caps or `no-store`, prompt and answer capture, bounded async hand-off to the engine, response headers, synchronous `verify` mode. Fails open. |
+| **DeepSeek** | via Bifrost's native `deepseek` provider | Reference judge model (`deepseek/deepseek-flash`, thinking disabled, temperature 0) for claim extraction, classification and verdicts. |
+| **Tavily relay** | Bifrost relay `/relay/tavily/*` | Forwards the engine's `search`, `extract` and free `GET /usage` calls to Tavily, priced per credit against the engine's virtual key. |
+| **HALFLIFE engine** | `engine/src/` (Node 24, zero npm dependencies) | Claim extraction and classification, freshness model, verification ladder, evidence rules, learning, cache actions, credit guard, HTTP API, SSE. |
+| **Storage** | `node:sqlite` in the `engine-data` volume | Reports, claims, evidence, learning observations, cache schedules, spend ledger, extension pairings (token hashes only). 14-day retention by default. |
+| **Console** | `engine/console/` | The dashboard, served by the engine on port 8090. Vanilla HTML/CSS/ES modules, live via server-sent events. |
+
+Every design decision, with the alternatives considered, is recorded in [research/ARCHITECTURE_DECISIONS.md](research/ARCHITECTURE_DECISIONS.md) (AD-01 to AD-38). A longer component walkthrough is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## How it works
+
+The sequence below follows a check started from the ChatGPT extension. Gateway traffic enters the same pipeline from the plugin instead (see [Bifrost integration](#bifrost-integration--problem-04)).
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor U as User
+  participant CS as Content script
+  participant SW as Service worker
+  participant E as HALFLIFE engine
+  participant B as Bifrost
+  participant D as DeepSeek
+  participant T as Tavily
+
+  U->>CS: Click "Check freshness" under an answer
+  CS->>CS: Read answer + preceding question twice, 600 ms apart (refuse if still changing)
+  CS->>SW: Answer, question, message id, model slug, hashed conversation id
+  SW->>E: POST /v1/extension/checks (bearer token, loopback)
+  E->>E: Validate schema and limits, deduplicate, queue (learn: false)
+  E->>B: Extract + classify claims
+  B->>D: chat completion (JSON schema)
+  D-->>B: claim spans, classes, as-of dates
+  B-->>E: claims JSON
+  E->>E: Drop spans not found verbatim · as-of interval · P(outdated) range
+  loop Each at-risk claim (≥ θ, max 3)
+    E->>E: Reuse a recent verdict? (0 credits) · reserve credits with the guard
+    E->>B: /relay/tavily/search (then /extract if no quote verified)
+    B->>T: search / extract
+    T-->>E: results with published dates and content
+    E->>B: Verdict request (claim + delimited evidence)
+    B->>D: chat completion
+    D-->>E: verdict, quotes, change date, replacement value
+    E->>E: Verify quotes in source text · evidence rules · strong/moderate/weak/none
+  end
+  E->>E: Store report in SQLite · publish SSE event
+  SW->>E: Poll report status
+  E-->>SW: Assessment, counts, headline
+  SW-->>CS: Result
+  CS-->>U: Compact result under the answer · "Open in Halflife" → console Inspector
 ```
 
-Two deployables: the **plugin** does only microsecond-scale inline work, so heavy or failing code can never take down the gateway; the **engine** does everything else. Full detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Every design decision with its rationale: [research/ARCHITECTURE_DECISIONS.md](research/ARCHITECTURE_DECISIONS.md).
+<details>
+<summary><b>Each stage in plain terms</b></summary>
 
-### How Bifrost is integrated
+| Stage | What happens | Code |
+|---|---|---|
+| Selecting an answer | Nothing is read until the user clicks. The button only appears on completed answers, never on one still streaming. | `extension/src/content.js` |
+| Extracting prompt and answer | The ChatGPT adapter recognises three DOM layouts and reads that answer plus the user turn directly before it. If no layout matches, no button appears. | `extension/src/adapters/chatgpt.js` |
+| Sending the check | The service worker sends it to the paired engine; the engine enforces a strict schema (answer ≤ 60,000 chars, question ≤ 4,000), per-minute and per-day limits, and returns the saved result for a repeat of the same message and text. | `extension/src/background.js`, `engine/src/extension.ts` |
+| Claim extraction | The judge returns claim spans, which must be exact substrings of the answer, plus a class from a closed list of 18. Invalid items are dropped. Without an LLM key a labelled rule-based extractor is used. | `engine/src/extract.ts`, `prompts.ts` |
+| Freshness evaluation | The as-of date is an interval (stated date → earlier verification → the model's cited cutoff → an assumed 6–36 months). The class model turns that into a P(outdated) range. | `engine/src/asof.ts`, `freshness.ts` |
+| Evidence retrieval | Reuse a stored verdict inside its reuse window (T0), else Tavily search (T1), else Tavily extract on the top two URLs (T2). Each paid call is reserved with the credit guard first. | `engine/src/verify.ts`, `tavily.ts`, `credits.ts` |
+| Evidence comparison | The judge returns a verdict with quotes. Quotes not found in the source are dropped; a verdict left with none becomes `unverifiable`. A "superseded" change dated in the future is discarded. A replacement value is shown only if a verified quote contains it. | `engine/src/verify.ts` |
+| Final assessment | Evidence confidence comes from explicit rules: number of verified quotes, independent sites, recency after the as-of date, conflicting sources. | `engine/src/evidence.ts` |
+| Viewing the result | A compact card under the ChatGPT answer; the full report in the console (ChatGPT → Activity, then Inspector). | `engine/console/views/` |
 
-- **Plugin:** `plugin/` is compiled as a Go plugin *inside* Bifrost's `transports/v2.4.0` module (pinned commit `e869c3f`, checked at build time) so dependency versions match the host exactly. It uses `HTTPTransportPreHook`, `PreLLMHook`, `PostLLMHook`, `HTTPTransportPostHook`, `HTTPTransportStreamChunkHook` and `HTTPTransportResponseHeadersHook`, and depends only on `core/schemas` and the Go standard library.
-- **Relays:** `/relay/tavily/*` holds the Tavily key and prices each call per Tavily credit against the engine's virtual key; `/relay/halflife/*` exposes the engine API behind a virtual key with a route allow-list.
-- **Cache:** Bifrost's `semantic_cache` plugin in exact-match mode; Halflife sets its TTL context key and calls its admin API to invalidate entries.
-- **LLM traffic:** all LLM calls, including Halflife's own, go through Bifrost. The engine's calls carry a secret internal token so the plugin skips them (no loops).
-- The gateway image is built from source (the official image is statically linked and cannot load Go plugins).
+</details>
 
-This project does **not** claim any upstream acceptance or contribution to Bifrost.
+## Browser extension (ChatGPT)
 
-### How Tavily is integrated
+An opt-in Manifest V3 extension ([`extension/`](extension/README.md)) for `chatgpt.com` and `chat.openai.com`, tested in Edge and Chrome. It has no dependencies and no build step, and is not published to any extension store.
 
-- **T0:** reuse a stored verification of the same normalised claim inside its reuse window — 0 credits.
-- **T1:** Tavily `search` (basic depth, published dates, topic chosen by claim class, 5 results) — 1 credit.
-- **T2:** Tavily `extract` on the top two URLs, only if no quote from T1 could be verified — about 1 credit.
-- The engine never holds the Tavily key; every call goes through the Bifrost relay. A free `GET /usage` route lets the engine read the account counter before paid calls.
+- **Integration:** content scripts run on ChatGPT pages. All ChatGPT-specific DOM knowledge lives in one adapter, which reads three page layouts and assumes none of them is permanent. The UI lives in a closed shadow root and follows ChatGPT's light or dark theme.
+- **Starting a check:** click **Check freshness** under a completed answer. Only that answer and the user message before it are sent, with ChatGPT's message id, the model slug if the page shows one, and a SHA-256 of the conversation id.
+- **Pairing:** in the console, ChatGPT → Extension → **Create pairing code** (one-time, valid 10 minutes). Enter the console address (`http://127.0.0.1:8090`) and the code in the extension popup. The service worker exchanges it, from its `chrome-extension://` origin, for a random 256-bit bearer token.
+- **Results:** a card under the answer shows an overall assessment ("Outdated information found", "Possibly outdated (weak evidence)", "Checked claims are current", "No time-sensitive claims"…), counts of claims examined, potentially outdated, superseded or contradicted, and checked live, plus **Open in Halflife** and **Re-check**. The popup shows connection status, today's and total checks, pause/resume, recent checks and a diagnostics line.
+- **Permissions:** `storage`, plus host access to `https://chatgpt.com/*`, `https://chat.openai.com/*`, `http://127.0.0.1/*` and `http://localhost/*`. No `tabs`, `scripting`, `cookies` or `webRequest`. The extension pages' CSP only allows connections to loopback addresses.
 
-### How DeepSeek is used
+Extension checks run through the same pipeline as gateway traffic with `learn: false`, so they never update the freshness model.
 
-The reference deployment uses **DeepSeek through Bifrost's native `deepseek` provider**, with `deepseek/deepseek-flash` as the judge for both extraction/classification and verdicts, **thinking disabled** and temperature 0. Structured output is requested as JSON schema; Bifrost rewrites it to DeepSeek's `json_object` mode. Override with `HALFLIFE_LLM_MODEL` (e.g. `deepseek/deepseek-v4-pro`). Other Bifrost providers (OpenAI, Anthropic, Gemini, Groq, OpenRouter, Mistral, Ollama) are wired into the config renderer but **only DeepSeek has been verified against the live service** in this project.
+| | |
+|---|---|
+| ![TEST FIXTURE: the extension's compact result card and Check freshness button under an answer on a local page that imitates ChatGPT's message markup](docs/assets/screenshots/14-extension-fixture-result.png) | ![TEST FIXTURE: the extension popup showing connection status, pause control and recent checks](docs/assets/screenshots/15-extension-fixture-popup.png) |
+| **TEST FIXTURE** — result card under an answer | **TEST FIXTURE** — the popup after that check |
+
+<sub>Both images show the real unpacked extension, but on a local test page with ChatGPT's message markup (not chatgpt.com) and against HALFLIFE's scripted test engine (<code>engine/test/fixture-server.ts</code>: 0 tokens, 0 credits). They are not real results. A screenshot on real chatgpt.com was not taken because it would show a personal signed-in account; the maintainer tested the extension manually on real chatgpt.com on 2026-11-03. The real check from that test appears in the console screenshots below.</sub>
+
+## Dashboard (console)
+
+The engine serves the console at <http://localhost:8090>. It has a slim top bar and one collapsible navigation sidebar (docked at ≥ 1100 px and remembered; a modal overlay below that), updates live over server-sent events, and follows the system light/dark theme. Screenshots are dark theme, captured from the running local stack in a real Edge window with the time zone set to UTC.
+
+| Page | What it does |
+|---|---|
+| **Inspector** | One report: the answer with each claim highlighted in place; a claim panel with verdict, timeline (as-of date → verification), the three measures, the evidence rules applied and quote-verified sources; gateway headers, cache action and spend. |
+| **Check** | Send a prompt *through the Bifrost gateway* exactly as an application would (the plugin handles it), or paste any text for direct analysis. Stages stream live. |
+| **Freshness model** | The 18 classes with their half-life and 90% interval, the prior's rationale, and prior vs learned posterior. |
+| **System** | Gateway reachability, plugin heartbeat and counters, judge model, Tavily and cache status, daily spend, Tavily account usage *as Tavily reports it*, and HALFLIFE's own spending limits. |
+| **ChatGPT → Activity** | Answers checked from the extension, newest first, with a compact detail and a link to the Inspector. |
+| **ChatGPT → Claim explorer** | Individual claims across those answers with verdict, freshness estimate, expected lifespan, quote-verified sources and (only when a verified quote states it) the replacement value. |
+| **ChatGPT → Trends** | Per-day volume, outdated claims over time, which classes go out of date most, and verification outcomes. Real data only; an empty range says so. |
+| **ChatGPT → Extension** | Paired browsers and revocation, pairing codes, the kill switch, estimate-only mode, rate limits, retention, the privacy statement and deletion. |
+| **Traffic** | A live list of the latest 100 reports, opened from the sidebar or with `T` on any page: a panel beside the sidebar on wide screens, a full-screen sheet below 700 px. |
+
+<table>
+<tr>
+<td width="50%"><img src="docs/assets/screenshots/06-claim-panel-evidence.png" alt="Inspector claim panel for a verify-mode report: verdict superseded, the current value, a timeline, the three measures, the evidence rules and sources whose quotes were verified"><br><b>Inspector — claim panel.</b> Verdict, replacement value, timeline, the three measures and quote-verified sources.</td>
+<td width="50%"><img src="docs/assets/screenshots/03-traffic-flyout-desktop.png" alt="Traffic panel listing recent reports, open to the right of the docked navigation sidebar"><br><b>Traffic.</b> The latest 100 reports, beside the sidebar.</td>
+</tr>
+<tr>
+<td><img src="docs/assets/screenshots/07-freshness-model.png" alt="Freshness model page listing half-lives with intervals per claim class and a prior-versus-posterior chart for one class"><br><b>Freshness model.</b> Half-life per class, prior vs posterior.</td>
+<td><img src="docs/assets/screenshots/08-system-integrations.png" alt="System page showing gateway, plugin, judge model, Tavily, cache and playground status with daily spend"><br><b>System — integrations.</b> Health of every dependency and today's spend.</td>
+</tr>
+<tr>
+<td><img src="docs/assets/screenshots/10-chatgpt-activity.png" alt="ChatGPT Activity page showing one real answer checked from chatgpt.com with four claims"><br><b>ChatGPT → Activity.</b> One real chatgpt.com answer: four claims, two checked live.</td>
+<td><img src="docs/assets/screenshots/11-chatgpt-claim-explorer.png" alt="Claim explorer listing the claims of the real check with lifespan, outdated probability and verified sources"><br><b>ChatGPT → Claim explorer.</b> Claims of that check with sources.</td>
+</tr>
+<tr>
+<td><img src="docs/assets/screenshots/12-chatgpt-trends.png" alt="Trends page with sparse charts built from a single real check"><br><b>ChatGPT → Trends.</b> Real aggregates; only one check, so the charts are sparse.</td>
+<td><img src="docs/assets/screenshots/13-chatgpt-extension-settings.png" alt="Extension settings page with the paired browser, pairing code controls and limits"><br><b>ChatGPT → Extension.</b> Pairing, limits and privacy controls.</td>
+</tr>
+</table>
+
+<details>
+<summary><b>Responsive layouts</b> (sidebar, tablet, phone)</summary>
+
+| Sidebar docked (1440 px) | Tablet (1024 px) | Phone (390 px) |
+|---|---|---|
+| ![Navigation sidebar docked open beside the Inspector on desktop](docs/assets/screenshots/02-sidebar-expanded.png) | ![Overlay sidebar with the Traffic panel beside it at tablet width](docs/assets/screenshots/04-traffic-flyout-tablet.png) | ![Traffic as a full-screen sheet with a labelled Close button on a phone](docs/assets/screenshots/05-traffic-sheet-phone.png) |
+
+</details>
+
+The console has **no authentication unless `HALFLIFE_CONSOLE_TOKEN` is set**; its port is bound to `127.0.0.1` and should not be exposed.
+
+## Freshness model
+
+<p align="center">
+  <img src="docs/assets/diagrams/decay-curves.svg" alt="Chart: probability that a claim is still unchanged over time, per class prior. Market prices fall below 50% within a day, software versions within months, product offerings within about a year, office holders and company leadership over several years, scientific consensus over decades; historical facts stay at 100%." width="880">
+</p>
+
+<sub>Generated from the priors in <code>engine/src/classes.ts</code> (P(unchanged after t) = (β/(β+t))<sup>α</sup>). These are prior assumptions before any learning, not measurements.</sub>
+
+**Implemented** (`engine/src/classes.ts`, `freshness.ts`, `learn.ts`):
+
+- **Change rate per class.** Changes to a claim of class *c* are modelled as a Poisson process with uncertain rate λ ~ Gamma(α, β). Each of the 18 classes has a hand-set "typical lifetime" and shape with a written rationale; one (org leadership) draws on Wikidata CEO tenure data from the feasibility sprint. The console shows it as a half-life (ln 2 / λ) with a 90% interval.
+- **P(outdated now).** For a claim of age Δt since its as-of date: `1 − (β/(β+Δt))^α`, evaluated on a 720-point λ grid (tested against the analytic form for all 18 classes). The as-of date is an interval, so the result is a range.
+- **Time sensitivity drives verification.** Claims at or above θ = 0.2 are verified, at most 3 per answer, riskiest first. `historical.fact` and `static.definition` are never searched; past-tense statements about an explicitly dated past state count as historical.
+- **Reuse window.** After a verification, the claim is not searched again until P(outdated since verification) reaches θ, so repeated claims cost 0 credits.
+- **Learning.** Verdicts with strong or moderate evidence become interval-censored observations that update the class posterior on the grid. Requests with `learn: false` (evaluation traffic and all extension checks) never do.
+
+**Why this is not accuracy.** The model says how likely a claim is to have *changed*, from its class and age alone. It knows nothing about whether the claim was right in the first place. Evidence confidence is computed separately from the retrieved sources, and **the verdict that drives cache actions comes from evidence, not from this probability**.
+
+**Not implemented or not established:** calibration. The priors are hand-set, few verified outcomes have updated them (12 gateway-derived observations after evaluation data was removed), and the evaluation did not measure calibration. The score is labelled *estimated · uncalibrated* wherever it appears. DeepSeek's knowledge cutoff is unpublished, so the assumed as-of range for its answers is wide.
+
+## Bifrost integration — Problem 04
+
+**Why Bifrost.** A freshness layer belongs where answers already flow: at the gateway. Bifrost gives HALFLIFE one place to see prompts and answers for every provider, a response cache to correct, relays to hold third-party keys, and virtual-key budgets for governance, all through supported extension points, with no changes to Bifrost's source.
+
+**What the plugin contributes** (`plugin/`, Go standard library plus `bifrost/core/schemas` only, registered `post_builtin` so it can set the semantic cache's TTL key):
+
+| Hook | Work |
+|---|---|
+| `HTTPTransportPreHook` | Create the report ID, read `x-halflife-mode`, skip the engine's own traffic (valid internal token only), capture the prompt. |
+| `PreLLMHook` | Streams: prompt-level triage → TTL cap or `no-store`. |
+| `PostLLMHook` | Non-streams: answer-level triage → TTL cap or `no-store`; capture the answer; in `verify` mode, call the engine synchronously and annotate a stale reply. |
+| `HTTPTransportPostHook` | Read cache id and hit status; enqueue the ingest job. |
+| `HTTPTransportStreamChunkHook` | Accumulate streamed text; enqueue at the final chunk. |
+| `HTTPTransportResponseHeadersHook` | Add `x-halflife-report`, `-mode`, `-ttl`, `-triage`, `-cache`, `-status`. |
+
+Triage uses lexical cue groups from `shared/temporal-cues.json` ("latest", prices, versions, office titles…), each with a TTL cap; price answers become `no-store`. Measured cost was about 42 µs for all hooks on one request. Every hook recovers panics and passes the response through unchanged; the hand-off queue is bounded and drops (counted) rather than blocks; if the engine is down, inference is unaffected (tested).
+
+**How inference is routed.** All LLM calls, including HALFLIFE's own extraction and verdict calls, go through Bifrost's `/v1/chat/completions` to the configured provider. The engine's calls carry a secret internal token so the plugin skips them and they never loop back into the pipeline. Bifrost rewrites the JSON-schema request into DeepSeek's `json_object` mode.
+
+**How it fits together.**
+- `/relay/tavily/*` holds the Tavily key and prices each call per credit against the engine's virtual key (Bifrost returns 402 when the daily dollar budget runs out).
+- `/relay/halflife/*` exposes the engine's read and check API behind a virtual key with a route allow-list; extension routes return 403 through it.
+- The engine calls Bifrost's cache admin API to delete an entry once a claim in it is confirmed `superseded` or `contradicted` with at least moderate evidence, or schedules deletion when the claims' reuse window ends. Cache hits are linked to the original report at no cost.
+- Request header `x-halflife-mode: verify` makes the reply wait for verification and carry a freshness note when a claim is outdated (never cached); `off` opts a request out.
+
+The official Bifrost image is statically linked and cannot load Go plugins, so `deploy/gateway.Dockerfile` builds Bifrost from source at the pinned tag and verifies the commit. Bifrost's web UI is replaced by a stub page in this image. This project has not been submitted upstream and does **not** claim acceptance or endorsement by the Bifrost maintainers.
+
+## Tavily integration — Problem 06
+
+**Why live retrieval.** A model cannot tell from its own weights whether "the latest Node.js is 22" is still true. Only current evidence can, so HALFLIFE checks risky claims against the web at the moment of the check.
+
+**How evidence is retrieved** (`engine/src/verify.ts`, `tavily.ts`), cheapest first:
+
+| Tier | Action | Cost |
+|---|---|---|
+| T0 | Reuse a stored verdict for the same normalised claim and class inside its reuse window | 0 credits |
+| T1 | Tavily `search`: basic depth, published dates, topic chosen by class (general / news / finance), 5 results | 1 credit |
+| T2 | Tavily `extract` on the top 2 URLs, only if T1 yielded no verifiable quote | about 1 credit |
+
+Results are passed to the judge as delimited, untrusted data. Only quotes found verbatim in the retrieved text survive, and evidence confidence is graded by rules over those verified quotes (count, independent sites, recency after the as-of date, conflicts). The engine never holds the Tavily key; every call goes through the Bifrost relay.
+
+**Usage limits and spending safeguards** (`engine/src/credits.ts`). Before every paid call, credits are reserved (serially, so concurrent claims cannot overshoot) against independent limits. Any refusal reports the claim as `not_checked` (reason `budget`): never given a verdict, never retried.
+
+| Safeguard | Source | Behaviour |
+|---|---|---|
+| **Provider-reported allowance** | Tavily `GET /usage` → `account.plan_usage` / `account.plan_limit`, read through the relay | Free call; read at start, cached 5 minutes (Tavily limits it to 10 reads per 10 minutes), manual refresh at most every 120 s. Displayed exactly as reported. Never assumed or hardcoded. |
+| **HALFLIFE lifetime ceiling** | `HALFLIFE_TOTAL_CREDIT_CAP` (default 700), summed over the engine's own spend ledger | Configuration only; a larger provider allowance never raises it. |
+| **HALFLIFE daily limit** | `HALFLIFE_DAILY_CREDIT_CAP` (default 150) | Configuration only. |
+| **Account usage guard** | `floor(plan_limit × HALFLIFE_TAVILY_CEILING_FRACTION)` (default 0.8, clamped to 0.95 in code) | Because Tavily's counter was observed to lag by minutes to hours, usage is taken as the maximum of Tavily's counter, the first reading plus every credit reserved locally since, and the engine's lifetime spend. A finite API-key limit is guarded the same way. Fails **closed** if usage or a finite allowance cannot be read. |
+| **Pay-as-you-go protection** | `account.paygo_usage` from `/usage` | If Tavily reports any pay-as-you-go usage, paid calls are refused. HALFLIFE cannot change account billing settings; it stops spending. |
+| **Bifrost budget** | `HALFLIFE_ENGINE_BUDGET_USD` (default $2/day) on the engine's virtual key | Bifrost returns 402 when exhausted. |
+| **Per answer** | θ = 0.2, max 3 claims | Static claims never searched; reuse is free. |
+
+> [!IMPORTANT]
+> Tavily's `/usage` API does **not** report add-on credits that appear only on Tavily's dashboard. HALFLIFE cannot see or account for them: the guard is computed from `account.plan_limit` alone, so it may stop earlier than the dashboard total suggests. This is deliberate; HALFLIFE never raises its own limits.
+
+The System page shows the provider's figures ("Tavily account usage") and HALFLIFE's limits ("Halflife spending limits") separately:
+
+![System page: Tavily account usage as the /usage API reports it, and separately HALFLIFE's lifetime ceiling, daily limit and account guard](docs/assets/screenshots/09-system-tavily-usage-and-limits.png)
 
 ## Technology stack
 
-| Layer | Technology |
+| Area | Technology |
 |---|---|
-| Gateway | Bifrost `transports/v2.4.0`, built from source in `golang:1.27.3-bookworm` |
-| Plugin | Go (CGO, `-buildmode=plugin`), standard library + `bifrost/core/schemas` |
-| Engine | Node.js 24 (native type stripping of `.ts`), `node:sqlite`, `node:http`, `node:test`; no npm dependencies |
-| Console | Vanilla ES modules, HTML, CSS; no framework or build step |
-| Search | Tavily Search and Extract APIs (via Bifrost relay) |
-| LLM | DeepSeek (`deepseek-flash`) via Bifrost |
-| Deployment | Docker Compose v2 |
+| Backend and engine | Node.js 24 with native TypeScript type stripping (`.ts` run directly), `node:http`, `node:sqlite`, `node:crypto`; **no npm dependencies**, no build step |
+| Bifrost plugin | Go, CGO, `-buildmode=plugin`, compiled inside Bifrost's `transports/v2.4.0` module; standard library + `bifrost/core/schemas` |
+| Gateway | Bifrost `transports/v2.4.0` (commit `e869c3f`) built from source in `golang:1.27.3-bookworm`; `semantic_cache` plugin (exact match) |
+| AI model integration | DeepSeek `deepseek-flash` via Bifrost's native `deepseek` provider. OpenAI, Anthropic, Gemini, Groq, OpenRouter, Mistral and Ollama are wired into the config renderer but untested live. |
+| Search and retrieval | Tavily Search, Extract and Usage APIs via a Bifrost relay |
+| Browser extension | Manifest V3, plain JavaScript, closed shadow DOM, IndexedDB in the service worker; Chromium (Edge, Chrome) |
+| Dashboard | Vanilla HTML, CSS and ES modules, server-sent events; no framework |
+| Testing | `node:test`; Go `testing` with `-race`; headless Edge/Chrome over the Chrome DevTools Protocol for console and extension tests; Docker-based integration suite with labelled test fixtures |
+| Deployment | Docker Compose v2: one-shot config renderer, gateway, engine; named volumes |
 
-## Quick start
+## Security and privacy
 
-**Prerequisites:** Docker with Compose v2 (Docker Desktop on Windows/macOS), Node.js 24+, Git, and about 5 GB of free disk for the first build. For live operation: a Tavily API key and a DeepSeek API key (with a positive balance). Without keys the stack still runs in a reduced, clearly labelled mode.
+- **No provider keys outside the gateway.** DeepSeek and Tavily keys live only in the gateway container's environment; the rendered Bifrost config references them as `env.NAME`. The engine and the extension never see them.
+- **Separate authentication per caller.** Plugin → engine uses an ingest token on the internal Docker network; relay → engine uses a bearer token that Bifrost injects; callers of the relay need a virtual key; the engine's own gateway calls use a separate internal token; the console uses a header plus an optional `HALFLIFE_CONSOLE_TOKEN`.
+- **Extension pairing.** A one-time code (valid 10 minutes; repeated failed attempts withdraw all outstanding codes) is exchanged for a random 256-bit token. The engine stores only its **SHA-256**, bound to the extension's `chrome-extension://` origin; a request with a different `Origin` is refused even with a valid token. Tokens can be **revoked** from the popup or the console.
+- **Ownership and scope.** An extension token can create checks, read **only its own** checks and read a minimal status. It cannot read gateway traffic, the event stream, settings or other connections' checks. Extension routes answer only for a loopback `Host` (DNS-rebinding defence) and return 403 through the relay.
+- **Untrusted input.** Answers and web evidence are delimited in prompts; model outputs are schema-validated; spans and quotes are checked against their sources.
+- **Local data.** Prompts, answers, claims and evidence excerpts are stored in SQLite (14-day retention by default; extension checks 30 days, deletable individually or all at once). Bifrost's log store also records requests. Text sent through HALFLIFE goes to the configured LLM provider, and search queries to Tavily.
+- **No telemetry.** No code path sends data anywhere except the configured LLM provider and Tavily (through Bifrost), and the extension sends only to a loopback engine after a click.
+- **Network exposure.** Ports bind to `127.0.0.1`. The console is unauthenticated unless `HALFLIFE_CONSOLE_TOKEN` is set.
+
+These are the protections implemented for a single-machine prototype, not a security audit. Threat boundaries: [docs/SECURITY.md](docs/SECURITY.md).
+
+## Installation and setup
+
+### Prerequisites
+
+| Requirement | Notes |
+|---|---|
+| Docker with **Compose v2** | Docker Desktop on Windows (WSL 2) or macOS; Docker Engine + `docker compose` on Linux. Only exercised on x86-64 Windows + WSL 2. |
+| **Node.js 24+** | Runs `deploy/setup.mjs`, tests and scripts. Older versions lack native TypeScript stripping and `node:sqlite`. |
+| Git, ~5 GB free disk, 8 GB+ RAM | The first build clones and compiles Bifrost. Go is **not** needed on the host. |
+| Edge or Chrome | For the extension and the browser test suites. |
+
+| Key | Required? | Without it |
+|---|---|---|
+| `DEEPSEEK_API_KEY` ([platform.deepseek.com](https://platform.deepseek.com/api_keys), positive balance) | for live extraction and verdicts | a labelled rule-based extractor is used and no verdicts are made |
+| `TAVILY_API_KEY` ([app.tavily.com](https://app.tavily.com)) | for live verification | risky claims are reported as `not checked` |
+
+### 1. Download and configure
+
+Get the code with Git (recommended):
 
 ```bash
-git clone https://github.com/fazeprism25/halflife.git && cd halflife
-node deploy/setup.mjs                  # creates deploy/.env with generated local secrets (prints names only)
-# edit deploy/.env: set TAVILY_API_KEY and DEEPSEEK_API_KEY (see deploy/.env.example)
-docker compose -f deploy/docker-compose.yml up --build
+git clone https://github.com/fazeprism25/halflife.git
+cd halflife
 ```
 
-The first build clones and compiles Bifrost and takes several minutes. When both containers report `healthy` (`docker ps`):
+or without Git: on [github.com/fazeprism25/halflife](https://github.com/fazeprism25/halflife) choose **Code → Download ZIP**, extract it, and open a terminal in the extracted `halflife-main` folder.
 
-| What | Where |
-|---|---|
-| Gateway (OpenAI-compatible) | `http://localhost:8080/v1/chat/completions` |
-| Halflife console | `http://localhost:8090` |
-| Halflife API through Bifrost | `http://localhost:8080/relay/halflife/v1/...` (header `x-bf-vk: <HALFLIFE_DEMO_VK>`) |
-
-Ports bind to `127.0.0.1` only. Step-by-step instructions for Windows, Linux and macOS, troubleshooting and every environment variable: [docs/INSTALLATION.md](docs/INSTALLATION.md).
-
-> **Key precedence:** Compose takes provider keys from your **shell environment first** and `deploy/.env` second. A key exported in your shell is used even if `deploy/.env` leaves it empty.
-
-There are no npm dependencies, so there is no `npm install` step. To try the extension, see [ChatGPT extension](#chatgpt-extension).
-
-## Configuration
-
-All configuration is environment variables in `deploy/.env` (created by `setup.mjs`; documented with placeholders in [`deploy/.env.example`](deploy/.env.example); gitignored). The ones you are most likely to set:
-
-| Variable (default) | Purpose |
-|---|---|
-| `TAVILY_API_KEY`, `DEEPSEEK_API_KEY` | provider keys; held by the gateway only, never by the engine |
-| `HALFLIFE_LLM_MODEL` (`deepseek/deepseek-flash` with DeepSeek) | judge model for extraction and verdicts |
-| `HALFLIFE_DAILY_CREDIT_CAP` (`150`), `HALFLIFE_TOTAL_CREDIT_CAP` (`700`) | Halflife's own daily and lifetime Tavily credit limits |
-| `HALFLIFE_TAVILY_CEILING_FRACTION` (`0.8`, max `0.95`) | share of the allowance Tavily's `/usage` reports that the account guard allows |
-| `HALFLIFE_ENGINE_BUDGET_USD` (`2`), `HALFLIFE_DEMO_BUDGET_USD` (`1`) | Bifrost daily dollar budgets on the engine and demo virtual keys |
-| `HALFLIFE_CONSOLE_TOKEN` (empty) | require a token for the console API |
-
-The generated secrets (ingest, internal and relay tokens, admin token, virtual keys) need no editing. After changing `deploy/.env`, recreate the containers (`docker compose -f deploy/docker-compose.yml up -d --force-recreate`). Full reference: [docs/INSTALLATION.md §6](docs/INSTALLATION.md#6-configuration-reference).
-
-## Usage
-
-The examples use `$HALFLIFE_DEMO_VK`, the virtual key generated into `deploy/.env` by `setup.mjs`. Load it into your shell without printing it, for example in bash: `export HALFLIFE_DEMO_VK=$(grep '^HALFLIFE_DEMO_VK=' deploy/.env | cut -d= -f2-)`.
-
-### Send traffic through the gateway
+Then generate the local configuration:
 
 ```bash
+node deploy/setup.mjs        # creates deploy/.env with generated local secrets; prints variable names only
+```
+
+Edit `deploy/.env` and set your provider keys (placeholders only shown here):
+
+```dotenv
+TAVILY_API_KEY=<your Tavily key>
+DEEPSEEK_API_KEY=<your DeepSeek key>
+```
+
+`setup.mjs` generates the ingest, internal and relay tokens, the Bifrost admin token and two virtual keys; they need no editing. `deploy/.env` is gitignored. Every variable is documented in [`deploy/.env.example`](deploy/.env.example).
+
+> [!WARNING]
+> Compose reads provider keys from your **shell environment first** and `deploy/.env` second. A key exported in your shell is used even if `deploy/.env` is empty or different.
+
+### 2. Start Bifrost, the plugin and the engine
+
+```bash
+docker compose -f deploy/docker-compose.yml up --build -d
+docker ps                    # wait until halflife-gateway-1 and halflife-engine-1 are "healthy"
+```
+
+The one-shot `config` service renders Bifrost's `config.json` (DeepSeek provider, Tavily and HALFLIFE relays, cache, virtual keys and budgets) from the keys present, so no separate Bifrost or Tavily setup is needed. The first build takes several minutes; later starts use the cache.
+
+| Service | Address |
+|---|---|
+| Bifrost gateway (OpenAI-compatible) | `http://localhost:8080/v1/chat/completions` |
+| Console (dashboard) | <http://localhost:8090> |
+| HALFLIFE API through Bifrost | `http://localhost:8080/relay/halflife/v1/...` with header `x-bf-vk: <HALFLIFE_DEMO_VK>` |
+
+There is no separate dashboard start step: the engine serves the console. Verify with `curl http://localhost:8090/v1/health`, then open **System**.
+
+### 3. Send traffic
+
+```bash
+# load the demo virtual key without printing it (bash)
+export HALFLIFE_DEMO_VK=$(grep '^HALFLIFE_DEMO_VK=' deploy/.env | cut -d= -f2-)
+
+# through the gateway, as an application would
 curl -i http://localhost:8080/v1/chat/completions \
   -H "content-type: application/json" -H "x-bf-vk: $HALFLIFE_DEMO_VK" \
   -d '{"model":"deepseek/deepseek-flash","thinking":{"type":"disabled"},"messages":[{"role":"user","content":"In one short sentence: what is the latest major version of Node.js?"}]}'
-```
 
-Response headers added by the plugin:
-
-| Header | Meaning |
-|---|---|
-| `x-halflife-report` | report ID (open it in the console or via `/v1/reports/{id}`) |
-| `x-halflife-mode` | `async`, `verify` or `off` |
-| `x-halflife-triage` | lexical cue groups that matched, or `none` |
-| `x-halflife-ttl` | cache TTL applied, `default` or `no-store` |
-| `x-halflife-cache` | `hit` when served from Bifrost's cache |
-| `x-halflife-status` | verification summary (in `verify` mode) |
-
-Request header `x-halflife-mode: verify` waits for verification before replying; `x-halflife-mode: off` opts a request out.
-
-> DeepSeek enables "thinking" by default. Send `"thinking":{"type":"disabled"}` in application requests with small `max_tokens`, or the reply can be empty (Halflife reports it as `skipped; no-text`).
-
-### Check text directly
-
-```bash
+# or check any text directly
 curl http://localhost:8080/relay/halflife/v1/check -H "x-bf-vk: $HALFLIFE_DEMO_VK" \
   -H "content-type: application/json" \
   -d '{"text":"As of 2023, Jack Dorsey is the CEO of Twitter.","question":"Who is the CEO of Twitter?","wait":true}'
 ```
 
-`/v1/check` body fields: `text` (required), `question`, `model` (the model that wrote the text; used for its knowledge cutoff), `as_of` (`YYYY-MM`), `wait` (return the finished report), `verify: false` (assess risk only — no search, no credits), `learn: false` (do not update the class model; use for evaluation traffic).
+The gateway response carries `x-halflife-report`; open that report in the console. You can do the same from the console's **Check** page.
 
-### API endpoints
+> DeepSeek enables "thinking" by default. Send `"thinking":{"type":"disabled"}` with small `max_tokens`, or the reply can be empty (reported as `skipped; no-text`).
+
+<details>
+<summary><b>API reference</b></summary>
 
 Through the relay (`/relay/halflife` prefix, header `x-bf-vk`):
 
@@ -236,208 +525,155 @@ Through the relay (`/relay/halflife` prefix, header `x-bf-vk`):
 | `GET` | `/v1/reports/{id}` | one claim-level report |
 | `POST` | `/v1/check` | analyse a text |
 
-The console (port 8090) additionally uses `/v1/events` (server-sent events) and `/v1/playground`. The plugin uses `/v1/ingest` and `/v1/plugin/heartbeat` on the internal network with its own token.
+`/v1/check` body: `text` (required), `question`, `model` (the model that wrote the text, for its knowledge cutoff), `as_of` (`YYYY-MM`), `wait`, `verify: false` (assess only: no search, 0 credits), `learn: false` (do not update the class model).
 
-### Example workflow
+Console-only (port 8090): `/v1/events` (SSE), `/v1/playground`, `/v1/usage/refresh`, extension settings. Plugin-only (internal network): `/v1/ingest`, `/v1/plugin/heartbeat`. Extension (loopback, paired token): `/v1/extension/status`, `/v1/extension/checks`, `/v1/extension/token`.
 
-1. Ask the gateway "What is the latest major version of Node.js, and of React?" DeepSeek answers "Node.js 22, React 19".
-2. The plugin sees the `recency` cue and hands the answer to the engine; the reply returns immediately with `x-halflife-report`.
-3. The engine extracts two `software.version` claims; both are above the risk threshold.
-4. Tavily evidence shows Node.js 26 is current: claim 1 → `superseded`, evidence `strong`; React 19 → `current`.
-5. The engine deletes the stale entry from Bifrost's cache; the next identical request is a cache miss.
-6. The console shows the answer with both claims highlighted, the quotes, dates, the three measures and the spend (2 Tavily credits).
+Gateway response headers: `x-halflife-report` (report id), `-mode` (`async`/`verify`/`off`), `-triage` (matched cue groups), `-ttl` (applied TTL, `default` or `no-store`), `-cache` (`hit`), `-status` (verify mode summary).
 
-## Console
+</details>
 
-The engine serves an operator console at <http://localhost:8090> (vanilla HTML, CSS and ES modules; no build step). It updates live over server-sent events.
+<details>
+<summary><b>Optional configuration</b></summary>
 
-**Layout.** A slim top bar holds the menu button, the brand and the live indicator. The navigation is a **collapsible sidebar**, collapsed by default so the report uses the full width:
-- **≥ 1100 px:** the sidebar docks beside the page; the open/closed choice is remembered in the browser.
-- **< 1100 px:** it opens as a modal overlay that closes with ✕, Escape, a click outside, a navigation link or choosing a report.
-
-**Traffic** (the latest 100 reports, live) is one item in the sidebar. Clicking it, or pressing `T` anywhere, opens a panel **to the right of the sidebar**; the sidebar and its navigation never move. The panel is 360–440 px wide depending on the space available (needs 700 px of viewport). **Below 700 px it is a full-screen sheet** with a labelled Close button. The header stays fixed and only the list scrolls. It closes with Traffic again, ✕/Close, Escape, a click outside, a navigation link or choosing a report; arrow keys, Home and End move through the list. It always starts closed.
-
-**Pages:** Inspector (one report: the answer with claims highlighted in place, a claim panel with timeline, the three measures, evidence rules and quote-verified sources, gateway and cache actions, spend), Check (send a prompt through the gateway or check text directly), Freshness model (the 18 classes with priors and learned posteriors), System (integrations, plugin counters, Tavily account usage, Halflife spending limits, policy), and the ChatGPT section (Activity, Claim explorer, Trends, Extension).
-
-All screenshots below were captured from the running local stack at commit `a2a296e` in a real (headed) Edge window, with the browser's time zone set to UTC. Unless marked TEST FIXTURE, the data are real reports from live DeepSeek and Tavily calls made during development and a real chatgpt.com check made with the extension; nothing was edited. Index: [`docs/assets/screenshots/`](docs/assets/screenshots/README.md).
-
-| | |
+| Variable (default) | Purpose |
 |---|---|
-| ![Sidebar docked open beside the Inspector](docs/assets/screenshots/02-sidebar-expanded.png) **Expanded sidebar** (desktop, docked) | ![Traffic panel open to the right of the sidebar](docs/assets/screenshots/03-traffic-flyout-desktop.png) **Traffic** opens sideways, to the right of the sidebar |
-| ![Traffic panel beside the overlay sidebar at 1024 px](docs/assets/screenshots/04-traffic-flyout-tablet.png) **Tablet** (1024 px): overlay sidebar with Traffic beside it | ![Traffic as a full-screen sheet on a 390 px phone](docs/assets/screenshots/05-traffic-sheet-phone.png) **Phone** (390 px): Traffic as a full-screen sheet |
-| ![Claim panel: verdict, timeline, three measures, evidence rules, quote-verified sources](docs/assets/screenshots/06-claim-panel-evidence.png) **Claim panel** (verify mode): superseded, current value, evidence rules and quotes checked against each source | ![Freshness model page: half-life per class](docs/assets/screenshots/07-freshness-model.png) **Freshness model:** half-life per class with 90% intervals, prior vs posterior |
-| ![System page: integrations and plugin counters](docs/assets/screenshots/08-system-integrations.png) **System:** integrations and plugin health | ![System page: Tavily account usage and Halflife spending limits](docs/assets/screenshots/09-system-tavily-usage-and-limits.png) **System:** Tavily account usage as `/usage` reports it, and Halflife's separate limits |
+| `HALFLIFE_LLM_MODEL` (`deepseek/deepseek-flash` with DeepSeek) | judge model |
+| `HALFLIFE_LLM_FALLBACKS`, `HALFLIFE_LLM_EXTRA_BODY` | Bifrost fallbacks; provider-specific request fields |
+| `HALFLIFE_PLAYGROUND_MODELS` | models offered on the Check page |
+| `HALFLIFE_DEFAULT_MODE` (`async`) | plugin mode without an `x-halflife-mode` header |
+| `HALFLIFE_CACHE_TTL_SECONDS` (`3600`) | Bifrost cache TTL; the plugin only lowers it |
+| `HALFLIFE_DAILY_CREDIT_CAP` (`150`), `HALFLIFE_TOTAL_CREDIT_CAP` (`700`) | HALFLIFE's daily and lifetime Tavily credit limits |
+| `HALFLIFE_TAVILY_CEILING_FRACTION` (`0.8`, max `0.95`), `HALFLIFE_TAVILY_ACCOUNT_GUARD` (`1`) | account guard share and on/off |
+| `HALFLIFE_ENGINE_BUDGET_USD` (`2`), `HALFLIFE_DEMO_BUDGET_USD` (`1`) | Bifrost daily dollar budgets on the two virtual keys |
+| `HALFLIFE_CONSOLE_TOKEN` (empty) | require a token for the console API |
+| `HALFLIFE_OLLAMA_URL` | add a local Ollama provider (untested end to end) |
 
-## Freshness model
+Engine tuning (`HALFLIFE_THETA`, `HALFLIFE_MAX_VERIFY_PER_RESPONSE`, `HALFLIFE_CONCURRENCY`, `HALFLIFE_RETENTION_DAYS`, timeouts) is read in `engine/src/config.ts`; add these to the `engine` service's `environment` in Compose to use them. After changing `deploy/.env`, run `docker compose -f deploy/docker-compose.yml up -d --force-recreate`.
 
-Halflife keeps three measures apart and never blends them into one score (details in [How Halflife works](#three-separate-measures) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#freshness-model-ad-09)):
+</details>
 
-- **Class change rate.** Each of the 18 classes has a Gamma prior on its rate of change λ (a Poisson process), with a written rationale in `engine/src/classes.ts`. It is shown as a half-life with a 90% interval. Two classes (historical facts, definitions/constants) do not expire and are never checked.
-- **P(outdated now).** For a claim of age Δt since its as-of date, `1 − (β/(β+Δt))^α` (the Gamma–Poisson marginal), evaluated on a λ grid. The as-of date is an interval (a stated date, an earlier verification, the model's cited cutoff, or an assumed 6–36 months for unknown cutoffs), so the result is a range. Claims at or above θ = 20% are verified, at most 3 per answer.
-- **Reuse window.** After a verification, the claim is not searched again until P(outdated since verification) reaches θ.
-- **Learning.** Verdicts with strong or moderate evidence update the class posterior. Evaluation and extension traffic send `learn: false`.
+### 4. Install and pair the browser extension
 
-**Limitations of the model:** the priors are hand-set; P(outdated) is **not calibrated** (labelled *estimated · uncalibrated* in the console); few verified outcomes have updated it; and an unknown model cutoff makes the range wide. The verdict that decides cache actions comes from evidence, not from this number.
+1. Open `chrome://extensions` or `edge://extensions`, enable **Developer mode**, choose **Load unpacked** and select the `extension/` folder.
+2. In the console, open **ChatGPT → Extension** and click **Create pairing code**.
+3. In the extension popup, enter `http://127.0.0.1:8090` and the code.
+4. On chatgpt.com, click **Check freshness** under an answer.
 
-## ChatGPT extension
+The engine must run on the same machine. More detail: [extension/README.md](extension/README.md).
 
-An opt-in Manifest V3 browser extension ([`extension/`](extension/README.md)) adds **Check freshness** under completed ChatGPT answers (chatgpt.com, chat.openai.com).
-- **One answer at a time:** clicking sends only that answer and the user message before it to **your local engine**. The engine runs the same pipeline as gateway traffic: extraction, freshness model, Bifrost-routed judge, Tavily relay and credit guard.
-- **In ChatGPT:** a compact result appears under the answer.
-- **In the console:** a **ChatGPT** section holds:
-  - **Activity:** checked answers, linked to the Inspector
-  - **Claim explorer:** verdicts, expected lifespan, quote-verified sources
-  - **Trends:** real per-day aggregates
-  - **Extension:** pairing, opt-in settings, privacy statement, deletion
-
-The extension holds no provider key. It pairs with the console through a one-time code and gets a revocable token bound to its origin, which can only create and read its own checks. Nothing is sent until you click. Install steps, data flow and the security model are in [extension/README.md](extension/README.md); the design is AD-32 in [research/ARCHITECTURE_DECISIONS.md](research/ARCHITECTURE_DECISIONS.md).
-
-**Install (developer mode, not in any store):** open `chrome://extensions` or `edge://extensions`, turn on Developer mode, **Load unpacked** → the `extension/` folder. In the console open ChatGPT → Extension → **Create pairing code**, then enter the console address and the code in the extension's popup.
-
-The extension was tested by the maintainer on real chatgpt.com (answers recognised, checks reached the local engine, results shown in the console). The first four screenshots below show real data from that test; the last two were taken with the real extension on a **TEST FIXTURE** page that carries ChatGPT's message markup, against Halflife's scripted test engine, because the live page would show a personal account.
-
-| | |
-|---|---|
-| ![ChatGPT activity page with one real check](docs/assets/screenshots/10-chatgpt-activity.png) **Activity:** a real chatgpt.com answer, four claims, two checked live | ![Claim explorer with real claims and quote-verified sources](docs/assets/screenshots/11-chatgpt-claim-explorer.png) **Claim explorer:** each claim with lifespan, P(outdated) and quote-verified sources |
-| ![Trends page with a single checked answer](docs/assets/screenshots/12-chatgpt-trends.png) **Trends:** real per-day aggregates (only one real check so far, so the charts are sparse) | ![Extension settings: pairing, limits, privacy](docs/assets/screenshots/13-chatgpt-extension-settings.png) **Extension settings:** paired browsers, pairing codes, limits |
-| ![TEST FIXTURE page: the extension's compact result under an answer](docs/assets/screenshots/14-extension-fixture-result.png) **TEST FIXTURE:** the compact result under a checked answer, and the **Check freshness** button | ![Extension popup after one TEST FIXTURE check](docs/assets/screenshots/15-extension-fixture-popup.png) **TEST FIXTURE:** the extension popup (connection, pause, recent checks) |
-
-## Tests
+### 5. Run the tests
 
 ```bash
-cd engine && npm test && cd ..                 # 76 engine unit and HTTP tests (no Docker, no keys)
+cd engine && npm test && cd ..                 # engine unit + HTTP tests (no Docker, no keys)
 node engine/scripts/check-imports.mjs          # every engine module imports cleanly
-node --test engine/test/console-ui.test.mjs    # 15 console UI checks in headless Edge/Chrome (test fixtures)
-node --test "extension/test/*.test.mjs"        # 8 adapter + 6 end-to-end browser-extension tests (Edge/Chrome)
-node deploy/test/integration.mjs               # 13 end-to-end checks against the real Bifrost binary (Docker, port 8080)
+node --test engine/test/console-ui.test.mjs    # console UI in headless Edge/Chrome (test fixtures)
+node --test "extension/test/*.test.mjs"        # extension adapter + end-to-end (Edge/Chrome; openssl for e2e)
+node deploy/test/integration.mjs               # real Bifrost + plugin + engine, scripted fixtures (Docker, port 8080)
 docker build -f deploy/gateway.Dockerfile --target plugin-test --no-cache-filter plugin-test --progress=plain .
-                                               # 21 Go plugin tests with -race, plus benchmarks
+                                               # Go plugin tests with -race, plus benchmarks
 ```
 
-| Suite | Last result | When |
-|---|---|---|
-| Engine | **76/76** | re-run on the final code, 2026-11-03 |
-| Console UI | **15/15** | re-run on the final code, 2026-11-03 |
-| Extension (adapter + e2e) | **14/14** | re-run on the final code, 2026-11-03; the first of three runs failed 9/14 on a pairing timeout, see [Known limitations](#known-limitations) |
-| Integration | **13/13** | re-run on the final code with a rebuilt engine image, 2026-11-03 |
-| Go plugin (`-race`) | **21/21** | last run 2026-11-02 (session 5); the plugin has not changed since |
+Stop a running stack before the integration suite (it uses port 8080; `NO_BUILD=1` reuses built images). Live scripts against real services (`deploy/test/live-*.mjs`, `deploy/demo/run-demo.mjs`) spend credits and call `preflight()` / `reconcile()` from `deploy/test/spend-guard.mjs` first; see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). Stop with `docker compose -f deploy/docker-compose.yml down` (`down -v` also deletes reports and the spend ledger). Troubleshooting: [docs/INSTALLATION.md](docs/INSTALLATION.md#8-troubleshooting).
 
-The integration suite builds and starts the real gateway, plugin and engine, with scripted **test fixtures** (`deploy/test/fixtures.mjs`) standing in for the LLM provider and Tavily, so it needs **no credentials and spends nothing**. It uses port 8080, so stop a running stack first (`NO_BUILD=1` reuses already-built images). The console UI and extension suites need Edge or Chrome; the extension end-to-end test also needs `openssl` (Git for Windows ships one). Live tests against real services (which spend credits, bounded by a guard) are described in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+## Testing and validation
 
-There is no hosted CI for this repository.
+| Suite | What it covers | Result | Source |
+|---|---|---|---|
+| Engine (`engine/test/*.test.ts`) | freshness model, credit guard, pipeline, HTTP API, extension service | **76/76** | re-run for this README, 2026-11-16 |
+| Console UI (`engine/test/console-ui.test.mjs`) | sidebar, Traffic panel, keyboard, breakpoints, themes and the Tavily usage panel in headless Edge, test fixtures | **15/15** | re-run for this README, 2026-11-16 |
+| Extension (`extension/test/*.test.mjs`) | 8 adapter tests on fixture DOMs + 6 end-to-end tests with the real unpacked extension | **14/14** | re-run for this README, 2026-11-16 |
+| Integration (`deploy/test/integration.mjs`) | real Bifrost binary, plugin and engine with scripted LLM and Tavily fixtures | **13/13** | previously reported, 2026-11-03; not re-run here |
+| Go plugin (`plugin/plugin_test.go`, `-race`) | hooks, triage, fail-open, queue, verify mode | **21/21** | previously reported, 2026-11-02; plugin unchanged since; not re-run here |
 
-## Implementation status
-
-| Area | Status |
-|---|---|
-| Bifrost plugin (six hooks, triage, TTL / `no-store`, hand-off, `verify` mode, fail-open) | implemented and tested |
-| Claim extraction and classification (LLM with validation; labelled rule-based fallback) | implemented and tested |
-| Freshness model (18 classes, Gamma–Poisson, reuse windows, learning) | implemented; **uncalibrated** |
-| Tavily verification (reuse, search, extract; quotes verified in code) | implemented; live-verified with real Tavily |
-| Cache actions (TTL caps, `no-store`, invalidation, expiry, linked cache hits) | implemented; integration-tested on real Bifrost |
-| Spend controls (per answer, daily, lifetime, Tavily account guard, Bifrost VK budget) | implemented and tested |
-| Console (sidebar, Traffic panel, Inspector, Check, model, System, ChatGPT pages) | implemented; UI-tested in Edge/Chrome |
-| ChatGPT extension | implemented; automated tests on fixtures; one manual pass on real chatgpt.com |
-| FreshQA-based evaluation | done for detection and verification; calibration not measured |
-| Demo runner and script | done; **demo video not recorded** |
-| Upstream Bifrost contribution | **not done** (no PR or proposal) |
-| Production hardening (multi-node, load testing, auth beyond a console token, CI) | **not done** |
-
-## Demo
-
-With the stack running and keys configured:
-
-```bash
-node deploy/demo/run-demo.mjs
-```
-
-This runs the steps of [research/DEMO_SCRIPT.md](research/DEMO_SCRIPT.md) through the real stack (time-invariant claims cost nothing; verify-before-reply; claim-level verdicts on a mixed answer; cache invalidation; cache-hit reuse) and writes a transcript to `deploy/demo/results/`. It spends a few Tavily credits (fewer when recent verifications are reused) and checks the spend guard before starting.
-
-## Cost controls
-
-- **Per answer:** at most 3 claims verified (riskiest first), only above the risk threshold θ = 0.2. Time-invariant claims are never searched.
-- **Reuse:** a verified claim is reused, at 0 credits, until its reuse window ends.
-- **Engine caps:** daily (`HALFLIFE_DAILY_CREDIT_CAP`, default 150) and lifetime (`HALFLIFE_TOTAL_CREDIT_CAP`, default 700) Tavily credits.
-- **Tavily account guard:** the engine reads your account's usage and allowance from Tavily's `GET /usage` through the relay (free; cached 5 minutes, within Tavily's 10-reads-per-10-minutes limit). Before every paid call it refuses beyond `HALFLIFE_TAVILY_CEILING_FRACTION` (default 0.8, clamped to 0.95 in code) of the allowance Tavily reports, on any pay-as-you-go usage, or when usage or a finite allowance cannot be read. No allowance is assumed or hardcoded. Credits Tavily's dashboard shows but the API does not report (such as add-on credits) are not counted. Tavily's counter was observed to lag by hours, so the guard also counts every credit it reserves locally. The daily and lifetime caps above are independent of the provider allowance. System → "Tavily account usage" shows the provider's figures, and "Halflife spending limits" shows the engine's own.
-- **Bifrost budget:** a daily dollar budget on the engine's virtual key (`HALFLIFE_ENGINE_BUDGET_USD`, default $2); Bifrost returns 402 when exhausted.
-- **Scripts:** every live script calls `preflight()` / `reconcile()` in `deploy/test/spend-guard.mjs`, which refuses to start a run whose worst case would cross the ceiling and records actual spend in a local ledger.
-
-A claim refused by any limit is reported as `not_checked` (reason `budget`): never given a verdict, never retried.
-
-## Security and privacy
-
-- Provider and Tavily keys live only in the gateway's environment; the rendered Bifrost config contains `env.NAME` references, never values. The engine never sees them.
-- Engine callers are authenticated separately: plugin (ingest token), relay (bearer token injected by Bifrost), console (header, optionally a token via `HALFLIFE_CONSOLE_TOKEN`).
-- Answers and web evidence are treated as untrusted data: delimited in prompts, outputs schema-validated, spans and quotes checked against their sources.
-- **Data stored locally:** the engine stores prompts, answers, claims and evidence excerpts in SQLite (14-day retention by default); Bifrost's own log store also records requests. Virtual keys are stored only as short SHA-256 fingerprints. Text sent through Halflife is sent to the configured LLM provider and claim text to Tavily.
-- **ChatGPT extension:** opt-in per answer, with no background capture and no telemetry. It sends only to a loopback engine with a paired, origin-bound token, and its checks never feed the learning model. See [extension/README.md](extension/README.md).
-- Ports bind to localhost. The console has **no authentication unless `HALFLIFE_CONSOLE_TOKEN` is set** — do not expose port 8090.
-
-Details and threat boundaries: [docs/SECURITY.md](docs/SECURITY.md).
+Limitations of the test evidence:
+- Integration and browser tests use **labelled test fixtures** in place of DeepSeek, Tavily and chatgpt.com, so they need no credentials and spend nothing; they do not prove behaviour against the live services.
+- Live DeepSeek and Tavily behaviour is covered by guarded live scripts and the evaluation below, not by the automated suites.
+- Real chatgpt.com was tested manually once (2026-11-03), not itemised step by step.
+- Browser tests run in Edge/Chrome only. The extension end-to-end suite once failed 9/14 on a pairing timeout before passing on unchanged code; the cause was not identified.
+- There is no hosted CI.
 
 ## Evaluation
 
-Measured on 2026-11-02 with real DeepSeek and Tavily calls, on items drawn from two public snapshots of [FreshQA](https://github.com/freshllms/freshqa) (2024-02-26 and 2026-04-21). Every item is FreshQA's question and answer verbatim; no statements were hand-written.
+Measured on 2026-11-02 with real DeepSeek and Tavily calls on items drawn verbatim from two public [FreshQA](https://github.com/freshllms/freshqa) snapshots (2024-02-26 and 2026-04-21):
 
 | Question | Result |
 |---|---|
-| **Detection:** is the claim time-sensitive? (100 items, assess-only, 0 credits) | precision **85.5%**, recall **97.9%**, F1 0.91; 7 answers yielded no claim |
-| **Verification:** 29 known-stale (2024) answers + 30 answers current at the 2026-04-21 snapshot, counting verdicts with ≥ moderate evidence | stale precision **95.8%** (92.0% if the one unadjudicated item is wrong); recall 95.8% of decided, 79.3% of all stale items; coverage 83% / 70% |
-| Changes after the snapshot that Halflife flagged | 8, each confirmed by independent web search |
+| **Detection:** is the claim time-sensitive? (100 items, assess-only, 0 credits) | precision 85.5%, recall 97.9%, F1 0.91 |
+| **Verification:** 29 known-stale + 30 current answers, verdicts with ≥ moderate evidence | stale precision 95.8% (92.0% if the one unadjudicated item is wrong); recall 79.3% of all stale items |
 | Replacement values on stale claims (26) | 10 match the dataset, 7 confirmed later changes, **2 wrong**, 1 unadjudicated, 6 omitted |
-| Cost | 1.04 Tavily credits per searched claim; ~4.5k DeepSeek tokens per checked claim; p50 3.9 s, p95 7.9 s |
+| Cost and latency | 1.04 Tavily credits per searched claim; ~4.5k DeepSeek tokens per checked claim; p50 3.9 s, p95 7.9 s |
 
-**Caveats:** the sets are small (100 + 59 items); a single judge model (`deepseek-flash`) was used; adjudication of disputed items was done by the AI assistant that built the system, with sources recorded in `eval/freshqa-adjudications.json`, not by independent humans; the outdated-probability score was **not** evaluated for calibration and is **uncalibrated**. FreshQA data is not redistributed here (no stated data licence); the scripts to rebuild and rerun the evaluation are included. Methodology, failure analysis and how to reproduce: [docs/EVALUATION.md](docs/EVALUATION.md).
+The sets are small, one judge model was used, disputed items were adjudicated by the AI assistant that built the system (sources in `eval/freshqa-adjudications.json`), and calibration was **not** measured. FreshQA data is not redistributed; the scripts to rebuild and rerun are in `eval/`. Full methodology and failure analysis: [docs/EVALUATION.md](docs/EVALUATION.md).
 
-## Known limitations
+## Limitations
 
-- **Scope:** freshness only. Time-invariant claims are never checked, so wrong static facts pass through.
-- **P(outdated) is uncalibrated.** It is a prior from hand-set class change rates updated by a small number of verified outcomes. The verdict comes from evidence, not from this number.
-- **Replacement values are weaker than verdicts** (2 of 26 wrong in FreshQA); grounding cannot tell "up to Node.js 26" from "the latest is Node.js 26".
-- **The judge can make date or count reasoning errors.** Future-dated changes are discarded in code; count errors are not guarded.
-- **Tavily `published_date`** can be wrong for evergreen/SEO pages.
-- **DeepSeek's knowledge cutoff is unpublished**, so the assumed as-of range for its answers is wide (6–36 months).
-- **Streams:** the TTL is decided from the prompt only; verification of streamed answers is asynchronous only.
-- **Learning:** repeated prompts with slightly different wording can add near-duplicate observations.
-- **Operational:** single engine node with SQLite; not load-tested; Bifrost's UI is replaced by a stub page; governance usage counters reset on gateway restart; it is unverified whether the Bifrost dollar budget meters DeepSeek spend.
-- Only the DeepSeek provider and the test fixtures have been exercised end to end; other providers are configured but untested.
-- **Tavily add-on credits are invisible to Halflife.** The account guard uses the allowance Tavily's `/usage` API reports (`account.plan_limit`). Credits that only Tavily's dashboard shows, such as add-on credits, are not counted and not spent, so the guard can stop earlier than the dashboard total suggests. This is deliberate; Halflife never raises its own limits.
-- **ChatGPT extension:** it reads ChatGPT's page structure, which can change without notice; Chromium only (Edge, Chrome); text answers only; not in any store; it needs the engine running on the same machine. The real-site test was one manual pass, not itemised.
-- **Test coverage of the UI:** console and extension tests run in Edge/Chrome only (no Firefox or Safari). The extension end-to-end suite failed once (9/14, a pairing timeout that cascaded) before passing 14/14 twice on unchanged code; the cause was not identified.
-- **Console caching:** console files are served `no-cache` with an ETag, so a browser always revalidates. A browser that cached the console from a version older than `a2a296e` (when CSS/JS had a 5-minute cache) may need one hard reload.
+- **Freshness, not fact-checking.** Static claims are never checked, so a stable but incorrect fact ("the Berlin Wall fell in 1991") passes through.
+- **P(outdated) is not calibrated.** Hand-set priors updated by few observations; treat it as a ranking signal, not a probability you can rely on.
+- **Evidence can be incomplete or wrong.** Tavily's `published_date` can be wrong for evergreen pages; sources can be out of date or unreliable; the judge can make date or count reasoning errors (future-dated changes are discarded in code, count errors are not).
+- **Replacement values are weaker than verdicts** (2 of 26 wrong in the evaluation).
+- **Tavily add-on credits are invisible.** The guard uses only the allowance `/usage` reports.
+- **The extension depends on ChatGPT's page structure**, which can change without notice; it reads text only, Chromium only, unpacked install only, and needs the engine on the same machine.
+- **Trends and the learned model are limited by history.** With few checks (the screenshots show one real extension check), charts are sparse and posteriors stay close to their priors.
+- **Streams:** the cache TTL is decided from the prompt only, and streamed answers are verified asynchronously only.
+- **Learning** can add near-duplicate observations from reworded prompts.
+- **Operational:** single engine node with SQLite; not load-tested; Bifrost's UI is a stub in this image; governance usage counters reset on gateway restart; whether Bifrost's dollar budget meters DeepSeek spend is unverified.
+- **Providers:** only DeepSeek (and the test fixtures) have been exercised end to end.
+
+## Roadmap
+
+Ideas that are **not implemented**:
+
+- Measure calibration of P(outdated) on a larger labelled set, and fit class priors from data rather than hand-setting them.
+- More evidence-quality signals (source reputation, publish-date sanity checks) and a guard against count-reasoning errors.
+- Verify streamed answers before the final chunk, and decide stream TTLs from the answer.
+- Evaluate additional judge models and providers already wired into the config renderer.
+- Adapters for other chat interfaces, and a Firefox build of the extension.
+- Multi-node storage, load testing, stronger console authentication and hosted CI.
+- Propose the plugin to the Bifrost maintainers.
 
 ## Project structure
 
-| Path | Contents |
-|---|---|
-| `plugin/` | Go plugin for Bifrost v2.4.0: hooks, triage, per-request state, delivery, tests |
-| `engine/src/` | engine: freshness model, extraction, verification, evidence rules, store, API |
-| `engine/test/` | engine tests (`node:test`) and test fakes |
-| `engine/console/` | operator console (vanilla ES modules), including the ChatGPT pages |
-| `extension/` | Manifest V3 browser extension for ChatGPT: platform adapter, content script, service worker, popup, tests |
-| `shared/temporal-cues.json` | lexical cues shared by the plugin and the engine |
-| `deploy/` | Dockerfiles, Compose file, config renderer, setup script, `.env.example` |
-| `deploy/test/` | integration suite, test fixtures, live scripts, spend guard |
-| `deploy/demo/` | demo runner |
-| `eval/` | hand-labelled sets, FreshQA builder/runner/scorer, adjudication notes, v1/v2 result summaries |
-| `docs/assets/screenshots/` | console and extension screenshots, with an index of what each shows and where its data came from |
-| `experiments/feasibility/` | feasibility-sprint probe plugin, configs and measured results (historical) |
-| `research/` | research report, feasibility report, architecture decisions, implementation log, project state, demo script, submission draft |
-| `docs/` | developer documentation |
+```text
+halflife/
+├── plugin/                    Go plugin for Bifrost: hooks, triage, per-request state, hand-off, tests
+├── engine/
+│   ├── src/                   pipeline, extraction, classes, freshness model, verification,
+│   │                          evidence rules, credit guard, extension service, store, HTTP server
+│   ├── console/               dashboard (vanilla ES modules), views/ for each page, traffic.js
+│   ├── test/                  node:test suites, fakes, fixture server, console UI test
+│   └── scripts/               import check
+├── extension/                 MV3 extension: src/ (adapter, content script, service worker),
+│                              popup/, icons/, test/ (adapter + CDP end-to-end)
+├── shared/temporal-cues.json  lexical cue groups shared by plugin and engine
+├── deploy/                    Dockerfiles, docker-compose.yml, config renderer, setup.mjs, .env.example
+│   ├── test/                  integration suite, fixtures, live scripts, spend guard
+│   └── demo/                  demo runner
+├── eval/                      FreshQA builder/runner/scorer, labelled sets, adjudications, results
+├── docs/                      architecture, installation, development, security, evaluation
+│   └── assets/                screenshots/ (with provenance index), diagrams/ (README graphics)
+├── experiments/feasibility/   feasibility-sprint probe plugin, configs and measured results (historical)
+└── research/                  research and feasibility reports, architecture decisions, implementation
+                               log, project state, demo script, submission draft
+```
 
-## Contributing
+## Hackathon context
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). In short: run the engine tests (and the plugin and integration suites when you touch those parts), never commit `deploy/.env` or anything under `engine/data/`, keep the engine dependency-free, and record design decisions in `research/ARCHITECTURE_DECISIONS.md`.
+Built for the **Geek Room Global AI Hackathon 2026**, addressing two problem statements as described in the team's brief (the official wording and rubric were not confirmed from a public page; see [research/SUBMISSION.md](research/SUBMISSION.md)):
 
-## License
+- **Bifrost Problem 04** — a production-quality feature using Bifrost's supported extension points. HALFLIFE uses a Go plugin (six hooks), two relays, the semantic cache's TTL key and the cache admin API, without modifying Bifrost.
+- **Tavily Problem 06** — a stale-answer detector: find factual claims in LLM output that may be out of date, verify them against current information, and give claim-level freshness assessments. HALFLIFE does this with Tavily search and extract behind a credit guard.
 
-Halflife is licensed under the **[Apache License 2.0](LICENSE)**. Copyright 2026 The Halflife authors; see [NOTICE](NOTICE).
+No judging outcome or official recognition is claimed.
 
-Third-party components keep their own licences. Bifrost (Apache-2.0) and its Go dependencies are downloaded and compiled at build time and are not included in this repository, but images you build contain them. The FreshQA dataset is cited, not redistributed, because its data carries no stated licence. Details and attribution: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+## License and credits
 
-## Acknowledgements
+HALFLIFE is licensed under the [Apache License 2.0](LICENSE). Copyright 2026 The Halflife authors; see [NOTICE](NOTICE).
 
-- [Bifrost](https://github.com/maximhq/bifrost) (`maximhq`; Apache-2.0, Copyright 2025 H3 Labs Inc.), the gateway Halflife extends.
-- [Tavily](https://tavily.com) for search and extraction, and [DeepSeek](https://www.deepseek.com) for the reference judge model.
-- [FreshQA](https://github.com/freshllms/freshqa) (Vu et al., 2023, arXiv:2310.03214), used for the evaluation.
-- Built for the Geek Room Global AI Hackathon 2026, with an AI coding assistant (Claude Code); see the AI-use disclosure in [research/SUBMISSION.md](research/SUBMISSION.md).
+- [Bifrost](https://github.com/maximhq/bifrost) by maximhq (Apache-2.0, Copyright 2025 H3 Labs Inc.) — the gateway HALFLIFE extends. It is downloaded and compiled at build time, not included in this repository; images you build contain it.
+- [Tavily](https://tavily.com) — web search and extraction. [DeepSeek](https://www.deepseek.com) — reference judge model.
+- [FreshQA](https://github.com/freshllms/freshqa) (Vu et al., 2023, arXiv:2310.03214) — evaluation data, cited and not redistributed (no stated data licence).
+- Third-party page titles and quotes in screenshots appear as the product shows them. Full attribution: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+- Built with an AI coding assistant (Claude Code); see the AI-use disclosure in [research/SUBMISSION.md](research/SUBMISSION.md).
+
+Further reading: [Architecture](docs/ARCHITECTURE.md) · [Installation](docs/INSTALLATION.md) · [Development](docs/DEVELOPMENT.md) · [Security](docs/SECURITY.md) · [Evaluation](docs/EVALUATION.md) · [Contributing](CONTRIBUTING.md) · [Changelog](CHANGELOG.md)

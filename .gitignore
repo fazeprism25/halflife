@@ -73,3 +73,7 @@ coverage/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Uncropped real chatgpt.com screenshots (private: they show the account avatar and the local
+# time zone). The deck uses only the crops in presentation_assets/crops/.
+presentation_assets/screenshots/real-chatgpt-*.png

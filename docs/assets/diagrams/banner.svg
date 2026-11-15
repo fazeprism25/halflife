@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 200" width="880" height="200" role="img" aria-labelledby="bt bd">
+<title id="bt">HALFLIFE</title>
+<desc id="bd">HALFLIFE wordmark. Four example claims with different shelf lives: a market price, a software version, a company leader and a historical fact.</desc>
+<rect width="880" height="200" rx="14" fill="#0f0f0e"/>
+<g transform="translate(40 58)">
+  <circle cx="22" cy="22" r="20" fill="#f0efec" stroke="#f0efec" stroke-width="2"/>
+  <path d="M22 2a20 20 0 0 1 0 40z" fill="#10b981"/>
+</g>
+<text x="98" y="92" fill="#f0efec" font-size="40" font-weight="700" letter-spacing="6" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif">HALFLIFE</text>
+<text x="40" y="140" fill="#c3c2b7" font-size="14" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif">Different facts expire at different rates.</text>
+<text x="40" y="160" fill="#c3c2b7" font-size="14" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif">Halflife finds the claims that may have</text>
+<text x="40" y="180" fill="#c3c2b7" font-size="14" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif">expired and checks them against live evidence.</text>
+<text x="420" y="40" fill="#8f8e86" font-size="11" letter-spacing="1" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif">TYPICAL TIME BETWEEN CHANGES · CLASS PRIOR · LOG SCALE</text>
+<text x="420" y="58" fill="#f0efec" font-size="12.5" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif">“Bitcoin trades at $60k”</text>
+<text x="840" y="58" fill="#8f8e86" font-size="11" text-anchor="end" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif">market.price</text>
+<rect x="420" y="65" width="420" height="6" rx="3" fill="#2b2b29"/>
+<rect x="420" y="65" width="26" height="6" rx="3" fill="#fb923c"/>
+<text x="420" y="94" fill="#f0efec" font-size="12.5" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif">“The latest Python is 3.12”</text>
+<text x="840" y="94" fill="#8f8e86" font-size="11" text-anchor="end" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif">software.version</text>
+<rect x="420" y="101" width="420" height="6" rx="3" fill="#2b2b29"/>
+<rect x="420" y="101" width="206" height="6" rx="3" fill="#f59e0b"/>
+<text x="420" y="130" fill="#f0efec" font-size="12.5" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif">“Satya Nadella is CEO of Microsoft”</text>
+<text x="840" y="130" fill="#8f8e86" font-size="11" text-anchor="end" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif">org.leadership</text>
+<rect x="420" y="137" width="420" height="6" rx="3" fill="#2b2b29"/>
+<rect x="420" y="137" width="320" height="6" rx="3" fill="#10b981"/>
+<text x="420" y="166" fill="#f0efec" font-size="12.5" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif">“The Berlin Wall fell in 1989”</text>
+<text x="840" y="166" fill="#8f8e86" font-size="11" text-anchor="end" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif">historical.fact</text>
+<rect x="420" y="173" width="420" height="6" rx="3" fill="#2b2b29"/>
+<rect x="420" y="173" width="420" height="6" rx="3" fill="#8f8e86"/>
+</svg>
